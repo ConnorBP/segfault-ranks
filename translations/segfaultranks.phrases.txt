@@ -1,0 +1,15 @@
+"Phrases"
+{
+	"TestText"
+	{
+		"en"		"Testing 123 yeet"
+	}
+	"TestText2"
+	{
+		"en"		"ya yeet"
+	}
+	"Testing12345678"
+	{
+		"en"		"abcdefg hi jk lol"
+	}
+}
