@@ -67,15 +67,6 @@ native void SegfaultRanks_Message(int client, const char[] format, any:...);
 // Prints a plugin-formatted message to all clients.
 native void SegfaultRanks_MessageToAll(const char[] format, any:...);
 
-/*********************************************************
- * Get rank of a player on the server
- *
- * @param client	The client index of the player to get the rank
- * @param callback	The return Callback
- * @param data	Any data you would like that return on the callback
- * @noreturn		
- *********************************************************/
-native void SegfaultRanks_GetRank(int client, RankCallback callback, any data = 0);
 
 // Global Forwards
 
@@ -121,6 +112,5 @@ public __pl_segfaultranks_SetNTVOptional() {
   MarkNativeAsOptional("SegfaultRanks_Message");
   MarkNativeAsOptional("SegfaultRanks_MessageToAll");
   MarkNativeAsOptional("SegfaultRanks_AddChatAlias");
-  MarkNativeAsOptional("SegfaultRanks_GetRank");
 }
 #endif
