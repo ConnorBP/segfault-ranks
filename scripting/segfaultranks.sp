@@ -69,20 +69,41 @@ void OnPluginStart() {
   // g_cvarDebugEnabled = CreateConvar(DEBUG_CVAR, "segfaultranks", "is
   // segfaultranks debugging filename?");
   InitDebugLog(DEBUG_CVAR, "segfaultranks");
-  // LoadTranslations("segfaultranks.phrases");
+  LoadTranslations("segfaultranks.phrases");
   LoadTranslations("common.phrases");
 
   // Initiate the rankings cache Global Adt Array
-  g_steamRankCache = CreateArray(ByteCountToCells(128));
+  // g_steamRankCache = CreateArray(ByteCountToCells(128));
 
-  DB_Init_Stuff();
+  InitializeDatabaseConnection();
 
+  HookEvents();
+  RegisterCommands();
+  RegisterConvars();
+  RegisterForwards();
+}
+
+void GetCvarValues() {
+  g_MinimumPlayers = g_cvarMinimumPlayers.IntValue;
+  g_RankMode = g_cvarRankMode.IntValue;
+  // g_DaysToNotShowOnRank = g_cvarDaysToNotShowOnRank.IntValue;
+  g_MinimalRounds = g_cvarMinimalRounds.IntValue;
+  g_bRankCache = g_cvarRankCache.BoolValue;
+}
+
+void InitializeDatabaseConnection() {
+  //  In here we will initialize a connection to our web service
+}
+
+void HookEvents() {
   HookEvent("bomb_defused", Event_Bomb);
   HookEvent("bomb_planted", Event_Bomb);
   HookEvent("player_death", Event_PlayerDeath);
   HookEvent("player_hurt", Event_DamageDealt);
   HookEvent("round_end", Event_RoundEnd);
+}
 
+void RegisterCommands() {
   RegAdminCmd("sm_dumprws", Command_DumpRWS, ADMFLAG_KICK,
               "Dumps all player historical rws and rounds played");
   RegConsoleCmd("sm_rws", Command_RWS, "Show player's historical rws");
@@ -93,7 +114,9 @@ void OnPluginStart() {
   // SegfaultRanks_AddChatAlias(".stats", "sm_rws");
   // SegfaultRanks_AddChatAlias(".rank", "sm_rank");
   // SegfaultRanks_AddChatAlias(".top", "sm_top");
+}
 
+void RegisterConvars() {
   g_MessagePrefixCvar =
       CreateConVar("sm_segfaultranks_message_prefix", "[{PURPLE}Ranks{NORMAL}]",
                    "The tag applied before plugin messages. If you want no "
@@ -137,7 +160,9 @@ void OnPluginStart() {
       true, 0.0, true, 1.0);
 
   AutoExecConfig(true, "segfaultranks", "sourcemod");
+}
 
+void RegisterForwards() {
   // Create the forwards
   g_fwdOnPlayerLoaded =
       CreateGlobalForward("SegfaultRanks_OnPlayerLoaded", ET_Hook, Param_Cell);
@@ -147,16 +172,6 @@ void OnPluginStart() {
       CreateGlobalForward("SegfaultRanks_OnHelpCommand", ET_Ignore, Param_Cell,
                           Param_Cell, Param_Cell, Param_CellByRef);
 }
-
-void GetCvarValues() {
-  g_MinimumPlayers = g_cvarMinimumPlayers.IntValue;
-  g_RankMode = g_cvarRankMode.IntValue;
-  // g_DaysToNotShowOnRank = g_cvarDaysToNotShowOnRank.IntValue;
-  g_MinimalRounds = g_cvarMinimalRounds.IntValue;
-  g_bRankCache = g_cvarRankCache.BoolValue;
-}
-
-void DB_Init_Stuff() {}
 
 public
 void OnConfigsExecuted() {
