@@ -69,32 +69,7 @@ native void SegfaultRanks_MessageToAll(const char[] format, any:...);
 
 
 // Global Forwards
-
-/**********************************************************************
- * When a player has been loaded
- * *
- * @param         client        The client index of the player that has been loaded
- * @noreturn
- **********************************************************************/
-forward Action SegfaultRanks_OnPlayerLoaded(int client);
-
-/**********************************************************************
- * When a player has been saved
- * *
- * @param         client        The client index of the player that has been saved
- * @noreturn
- **********************************************************************/
-forward Action SegfaultRanks_OnPlayerSaved(int client);
-
-/**
- * Called when a client issues a .help command in chat.
- *
- * @param client The client issuing the command
- * @param replyMessages An ArrayList of Strings to reply with (in chat)
- * @param maxMessageSize The max length of a string in the replyMessages list
- * @param block Whether to block the reply message (set to true to have no reply)
- */
-forward void PugSetup_OnHelpCommand(int client, ArrayList replyMessages, int maxMessageSize,bool& block);
+// NONE
 
 public SharedPlugin __pl_segfaultranks = {
     name = "segfaultranks", file = "segfaultranks.smx",

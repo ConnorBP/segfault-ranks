@@ -10,20 +10,11 @@
 #include "include/segfaultranks.inc"
 #include "segfaultranks/util.sp"
 #include <logdebug>
-#include <priorityqueue>
 
 //#define AUTH_METHOD AuthId_Steam2
 
-// forwards
 
-Handle g_fwdOnPlayerLoaded = INVALID_HANDLE;
-Handle g_fwdOnPlayerSaved = INVALID_HANDLE;
-
-Handle g_hOnHelpCommand = INVALID_HANDLE;
-
-bool g_bEnabled = true; // TODO add a convar to disable this plugin, and verify
-                        // that the database is handles properly when the plugin
-                        // is disabled while already running
+bool g_bEnabled = true; // TODO add a convar to disable this plugin
 
 // User Data Cache
 
@@ -163,14 +154,7 @@ void RegisterConvars() {
 }
 
 void RegisterForwards() {
-    // Create the forwards
-    g_fwdOnPlayerLoaded = CreateGlobalForward("SegfaultRanks_OnPlayerLoaded",
-                                              ET_Hook, Param_Cell);
-    g_fwdOnPlayerSaved =
-        CreateGlobalForward("SegfaultRanks_OnPlayerSaved", ET_Hook, Param_Cell);
-    g_hOnHelpCommand = CreateGlobalForward("SegfaultRanks_OnHelpCommand",
-                                           ET_Ignore, Param_Cell, Param_Cell,
-                                           Param_Cell, Param_CellByRef);
+
 }
 
 public
