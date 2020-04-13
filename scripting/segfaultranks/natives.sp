@@ -174,8 +174,10 @@ public void SQL_GetPlayersCallback(Handle owner, Handle hndl, const char[] error
 
 void CheckUnique(){
     char sQuery[1000];
-    if(g_bMysql){Format(sQuery, sizeof(sQuery), "SHOW INDEX FROM `%s` WHERE Key_name = 'steam'", g_sSQLTable);}
-    else{Format(sQuery, sizeof(sQuery), "PRAGMA INDEX_LIST('%s')", g_sSQLTable);}
+    //if(g_bMysql){
+    Format(sQuery, sizeof(sQuery), "SHOW INDEX FROM `%s` WHERE Key_name = 'steam'", g_sSQLTable);
+    //}
+    //else{Format(sQuery, sizeof(sQuery), "PRAGMA INDEX_LIST('%s')", g_sSQLTable);}
     SQL_TQuery(g_hStatsDb, SQL_SetUniqueCallback, sQuery);
 }
 
@@ -192,8 +194,10 @@ public void SQL_SetUniqueCallback(Handle owner, Handle hndl, const char[] error,
     SQL_TQuery(g_hStatsDb, SQL_NothingCallback, sQuery);
     // check unique key is exists or not
     if(SQL_GetRowCount(hndl) < 1){
-        if(g_bMysql){Format(sQuery, sizeof(sQuery), "ALTER TABLE `%s` ADD UNIQUE(steam)" ,g_sSQLTable);}
-        else{Format(sQuery, sizeof(sQuery), "CREATE UNIQUE INDEX steam ON `%s`(steam)" ,g_sSQLTable);}
+        //if(g_bMysql){
+        Format(sQuery, sizeof(sQuery), "ALTER TABLE `%s` ADD UNIQUE(steam)" ,g_sSQLTable);
+        //  }
+        //else{Format(sQuery, sizeof(sQuery), "CREATE UNIQUE INDEX steam ON `%s`(steam)" ,g_sSQLTable);}
         SQL_TQuery(g_hStatsDb, SQL_NothingCallback, sQuery);
     }
 }

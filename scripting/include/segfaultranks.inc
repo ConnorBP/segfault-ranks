@@ -19,18 +19,18 @@ enum struct STATS_NAMES {
     int ROUND_POINTS; //per-round points used to calculate RWS at the end of round
     float RWS;//player overall RWS value
     int ROUNDS_TOTAL;//total number of rounds the player has played out
-    int ROUNDS_WON;
-    int KILLS;
-    int DEATHS;
-    int ASSISTS;
-    int SUICIDES;
-    int TEAMKILLS;
-    int HEADSHOTS;
-    int TOTAL_DAMAGE
-    int MVP;
-    int MATCHES_WON;
-    int MATCHES_LOST;
-    int MATCHES_TIED;
+    //int ROUNDS_WON;
+    //int KILLS;
+    //int DEATHS;
+    //int ASSISTS;
+    //int SUICIDES;
+    //int TEAMKILLS;
+    //int HEADSHOTS;
+    //int TOTAL_DAMAGE
+    //int MVP;
+    //int MATCHES_WON;
+    //int MATCHES_LOST;
+    //int MATCHES_TIED;
 
     void Reset() {
         this.CONNECTED = 0;
@@ -38,15 +38,15 @@ enum struct STATS_NAMES {
         this.ROUND_POINTS = 0;
         this.RWS = 0.0;
         this.ROUNDS_TOTAL = 0;
-        this.ROUNDS_WON = 0;
-        this.ASSISTS = 0;
-        this.SUICIDES = 0;
-        this.TEAMKILLS = 0;
-        this.HEADSHOTS = 0;
-        this.TOTAL_DAMAGE = 0;
-        this.MVP = 0;
-        this.MATCHES_WON = 0;
-        this.MATCHES_TIED = 0;
+        //this.ROUNDS_WON = 0;
+        //this.ASSISTS = 0;
+        //this.SUICIDES = 0;
+        //this.TEAMKILLS = 0;
+        //this.HEADSHOTS = 0;
+        //this.TOTAL_DAMAGE = 0;
+        //this.MVP = 0;
+        //this.MATCHES_WON = 0;
+        //this.MATCHES_TIED = 0;
     }
     /*int GetDbRWS() {
       return FloatToDb(this.RWS);

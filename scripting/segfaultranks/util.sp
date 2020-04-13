@@ -98,7 +98,7 @@ stock bool OnActiveTeam(int client) {
 
 // cookies
 
-stock int GetCookieInt(int client, Handle cookie, int defaultValue = 0) {
+/*stock int GetCookieInt(int client, Handle cookie, int defaultValue = 0) {
 	char buffer[MAX_INTEGER_STRING_LENGTH];
 	GetClientCookie(client, cookie, buffer, sizeof(buffer));
 	
@@ -128,4 +128,4 @@ stock void SetCookieFloat(int client, Handle cookie, float value) {
 	char buffer[MAX_FLOAT_STRING_LENGTH];
 	FloatToString(value, buffer, sizeof(buffer));
 	SetClientCookie(client, cookie, buffer);
-}
+}*/

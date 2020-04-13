@@ -31,7 +31,7 @@
 #define ALPHA_INIT 0.1
 #define ALPHA_FINAL 0.003
 #define ROUNDS_FINAL 250.0
-#define AUTH_METHOD AuthId_Steam2
+//#define AUTH_METHOD AuthId_Steam2
 
 
 //forwards
@@ -41,8 +41,6 @@ Handle g_fwdOnPlayerSaved = INVALID_HANDLE;
 
 Handle g_hOnHelpCommand = INVALID_HANDLE;
 
-
-bool DEBUGGING = true; //TODO: MIX THIS IN WITH THE DEBUGGING CVAR
 bool g_bEnabled = true; //TODO add a convar to disable this plugin, and verify that the database is handles properly when the plugin is disabled while already running
 
 // Database variables
@@ -51,14 +49,14 @@ bool g_bEnabled = true; //TODO add a convar to disable this plugin, and verify t
 
 // id, steam, name, lastip, connected, lastconnected, elo, rws, rounds_total, rounds_won, kills, deaths, assists, suicides, teamkills, headshots, total_damage, mvp, matches_won, matches_lost, matches_tied
 
-static const char g_sMysqlCreate[] = "CREATE TABLE IF NOT EXISTS `%s` (id INTEGER PRIMARY KEY, steam TEXT, name TEXT, lastip TEXT, connected NUMERIC, lastconnected NUMERIC, elo FLOAT, rws FLOAT, rounds_total NUMERIC, rounds_won NUMERIC, kills NUMERIC, deaths NUMERIC, assists NUMERIC, suicides NUMERIC, teamkills NUMERIC, headshots NUMERIC, total_damage NUMERIC, mvp NUMERIC, matches_won NUMERIC, matches_lost NUMERIC, matches_tied NUMERIC) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
-static const char g_sSqlInitInsert[] = "INSERT INTO `%s` VALUES (NULL,'%s','%s','%s','0','0','500.0','0.0','0','0','0','0','0','0','0','0','0','0','0','0','0');";
-static const char g_sSqlSave[] = "UPDATE `%s` SET name='%s',lastip='%s',elo='%f',rws='%f',rounds_total='%i',rounds_won='%i',kills='%i',deaths='%i',assists='%i',suicides='%i',teamkills='%i',headshots='%i',total_damage='%i',mvp ='%i',matches_won='%i',matches_lost='%i',matches_tied='%s' WHERE steam = '%s';";
+static const char g_sMysqlCreate[] = "CREATE TABLE IF NOT EXISTS `%s` (id INTEGER PRIMARY KEY, steam TEXT, name TEXT, elo FLOAT, rws FLOAT, rounds_total NUMERIC) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+static const char g_sSqlInitInsert[] = "INSERT INTO `%s` VALUES (NULL,'%s','%s','500','0','0');";
+static const char g_sSqlSave[] = "UPDATE `%s` SET name='%s',elo='%f',rws='%f',rounds_total='%i' WHERE steam = '%s';";
 static const char g_sSqlRetrieveClient[] = "SELECT * FROM `%s` WHERE steam='%s';";
 
-Handle g_hStatsDb;
-char g_sSQLTable[200];
-bool g_bMysql = true;
+Handle g_hStatsDb = INVALID_HANDLE;
+char g_sSQLTable[200] = "segfaultranks";
+//bool g_bMysql = true;
 
 // wether or not a user is on/loaded from the db yet
 bool OnDB[MAXPLAYERS + 1];
@@ -66,7 +64,7 @@ bool OnDB[MAXPLAYERS + 1];
 // Preventing duplicates
 char g_aClientSteam[MAXPLAYERS + 1][64];
 char g_aClientName[MAXPLAYERS + 1][MAX_NAME_LENGTH];
-char g_aClientIp[MAXPLAYERS + 1][64];
+//char g_aClientIp[MAXPLAYERS + 1][64];
 
 // Local cache of state user stats
 STATS_NAMES g_aStats[MAXPLAYERS + 1];
@@ -76,11 +74,11 @@ int g_aSessionConnectedTime[MAXPLAYERS +1];
 // convar local variables
 
 //minimum players required for ranks to calculate
-int g_MinimumPlayers;
-int g_RankMode;
+int g_MinimumPlayers = 0;
+int g_RankMode = 1;
 //int g_DaysToNotShowOnRank;
-int g_MinimalRounds;
-bool g_bRankCache;
+int g_MinimalRounds = 0;
+bool g_bRankCache = false;
 
 //int g_TotalPlayers;//this is set by sql_getplayerscallback for some reason
 
@@ -88,11 +86,11 @@ bool g_bRankCache;
 
 ConVar g_MessagePrefixCvar;
 
-ConVar g_cvarMysql;
-ConVar g_cvarSQLTable;
+//ConVar g_cvarMysql;
+//ConVar g_cvarSQLTable;
 ConVar g_AllowStatsOtherCommandCvar;
 //ConVar g_RecordStatsCvar;
-ConVar g_cvarAutopurge;
+//ConVar g_cvarAutopurge;
 ConVar g_cvarMinimumPlayers;
 ConVar g_cvarRankMode;
 //ConVar g_cvarDaysToNotShowOnRank;
@@ -131,12 +129,15 @@ public Plugin myinfo = {
 
 
 public void OnPluginStart() {
+    //g_cvarDebugEnabled = CreateConvar(DEBUG_CVAR, "segfaultranks", "is segfaultranks debugging filename?");
     InitDebugLog(DEBUG_CVAR, "segfaultranks");
     //LoadTranslations("segfaultranks.phrases");
     LoadTranslations("common.phrases");
 
     // Initiate the rankings cache Global Adt Array
     g_steamRankCache = CreateArray(ByteCountToCells(128));
+
+    DB_Init_Stuff();
 
     HookEvent("bomb_defused", Event_Bomb);
     HookEvent("bomb_planted", Event_Bomb);
@@ -157,7 +158,7 @@ public void OnPluginStart() {
     g_MessagePrefixCvar = CreateConVar("sm_segfaultranks_message_prefix", "[{PURPLE}Ranks{NORMAL}]", "The tag applied before plugin messages. If you want no tag, you can set an empty string here.");
     g_AllowStatsOtherCommandCvar = CreateConVar("sm_segfaultranks_allow_stats_other", "1", "Whether players can use the .rws or !rws command on other players");
     //g_RecordStatsCvar = CreateConVar("sm_segfaultranks_record_stats", "1", "Whether rws should be recorded while not in warmup (set to 0 to disable changing players rws stats)");
-    g_cvarAutopurge = CreateConVar("sm_segfaultranks_autopurge", "0", "Auto-Purge inactive players? X = Days  0 = Off", _, true, 0.0);
+    //g_cvarAutopurge = CreateConVar("sm_segfaultranks_autopurge", "0", "Auto-Purge inactive players? X = Days  0 = Off", _, true, 0.0);
     g_cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
     g_cvarRankMode = CreateConVar("sm_segfaultrank_rank_mode", "1", "Rank by what? 1 = by rws 2 = by kdr 3 = by elo", _, true, 1.0, true, 3.0);
     //g_cvarDaysToNotShowOnRank = CreateConVar("sm_segfaultrank_timeout_days", "0", "Days inactive to not be shown on rank? X = days 0 = off", _, true, 0.0);
@@ -167,8 +168,8 @@ public void OnPluginStart() {
     //g_ShowRWSOnScoreboardCvar = CreateConVar("sm_segfaultranks_display_rws", "1", "Whether rws stats for current map are to be displayed on the ingame scoreboard in place of points.");
     //g_ShowRankOnScoreboardCvar = CreateConVar("sm_segfaultranks_display_rank", "1", "Whether rws stats for current map are to be displayed on the ingame scoreboard in place of points.");
     g_cvarRankCache = CreateConVar("sm_segfaultranks_rank_cache", "0", "Get player rank via cache, auto build cache on every OnMapStart.", _, true, 0.0, true, 1.0);
-    g_cvarMysql = CreateConVar("sm_segfaultranks_mysql", "1", "Using MySQL? 1 = true 0 = false (SQLite currently not implemented)", _, true, 0.0, true, 1.0);
-    g_cvarSQLTable = CreateConVar("sm_segfaultranks_sql_table", "segfaultranks", "The name of the table that will be used. (Max: 100)");
+    //g_cvarMysql = CreateConVar("sm_segfaultranks_mysql", "1", "Using MySQL? 1 = true 0 = false (SQLite currently not implemented)", _, true, 0.0, true, 1.0);
+    //g_cvarSQLTable = CreateConVar("sm_segfaultranks_sql_table", "segfaultranks", "The name of the table that will be used. (Max: 100)");
 
     AutoExecConfig(true, "segfaultranks", "sourcemod");
 
@@ -191,27 +192,35 @@ void GetCvarValues() {
     g_bRankCache = g_cvarRankCache.BoolValue;
 }
 
-public void OnConfigsExecuted() {
-    if (g_hStatsDb == INVALID_HANDLE)
+void DB_Init_Stuff() {
+
+    if (g_hStatsDb == INVALID_HANDLE) {
         DB_Connect(true);
+    }
     else
+    {
         DB_Connect(false);
-    int AutoPurge = g_cvarAutopurge.IntValue;
+    }
+
+    int AutoPurge = 0;//g_cvarAutopurge.IntValue;
     char sQuery[1000];
     if (AutoPurge > 0) {
         int DeleteBefore = GetTime() - (AutoPurge * 86400);
         Format(sQuery, sizeof(sQuery), "DELETE FROM `%s` WHERE lastconnect < '%d'", g_sSQLTable, DeleteBefore);
-        SQL_TQuery(g_hStatsDb, SQL_PurgeCallback, sQuery);
+        SQL_TQuery(g_hStatsDb, SQL_PurgeCallback, sQuery, _, DBPrio_High);
     }
-    
-    GetCvarValues();
 
     Format(sQuery, sizeof(sQuery), "SELECT * FROM `%s` WHERE rounds_total >= '%d' AND steam <> 'BOT'", g_sSQLTable, g_MinimalRounds);
     
-    SQL_TQuery(g_hStatsDb, SQL_GetPlayersCallback, sQuery);
+    SQL_TQuery(g_hStatsDb, SQL_GetPlayersCallback, sQuery, _, DBPrio_High);
 
     CheckUnique();
     BuildRankCache();
+}
+
+public void OnConfigsExecuted() {
+    GetCvarValues();
+    DB_Init_Stuff();
 }
 
 void BuildRankCache()
@@ -230,14 +239,14 @@ void BuildRankCache()
     else if(g_RankMode == 2){Format(query, sizeof(query), "%s ORDER BY CAST(kills as DECIMAL)/CAST(Case when deaths=0 then 1 ELSE deaths END as DECIMAL) DESC", query);}
     else {Format(query, sizeof(query), "%s ORDER BY elo DESC", query);}
     
-    SQL_TQuery(g_hStatsDb, SQL_BuildRankCache, query);
+    SQL_TQuery(g_hStatsDb, SQL_BuildRankCache, query, _, DBPrio_High);
 }
 
 public void SQL_BuildRankCache(Handle owner, Handle hndl, const char[] error, any unuse)
 {
     if (hndl == INVALID_HANDLE)
     {
-        LogError("[RankMe] : build rank cache failed", error);
+        LogDebug("[RankMe] : build rank cache failed", error);
         return;
     }
     
@@ -266,31 +275,33 @@ stock void MakeSelectQuery(char[] sQuery, int strsize) {
 
 public void DB_Connect(bool firstload) {
     if(firstload) {
-        g_bMysql = g_cvarMysql.BoolValue;
-        g_cvarSQLTable.GetString(g_sSQLTable, sizeof(g_sSQLTable));
+        //g_bMysql = g_cvarMysql.BoolValue;
+        //g_cvarSQLTable.GetString(g_sSQLTable, sizeof(g_sSQLTable));
         char sError[256];
-        if (g_bMysql) {
-            g_hStatsDb = SQL_Connect("segfaultranks", false, sError, sizeof(sError));
-        } else {
+        //if (g_bMysql) {
+        g_hStatsDb = SQL_Connect("segfaultranks", false, sError, sizeof(sError));
+        //} else {
             //g_hStatsDb = SQLite_UseDatabase("segfaultranks", sError, sizeof(sError));
-        }
+        //}
         if (g_hStatsDb == INVALID_HANDLE)
         {
+            PrintToServer("[SegfaultRanks] Unable to connect to the database (%s)", sError);
             SetFailState("[SegfaultRanks] Unable to connect to the database (%s)", sError);
+            LogError("[SegfaultRanks] Failed to connect to the segfaulranks db on plugin load. ErrorState: %s", sError);
         }
         SQL_LockDatabase(g_hStatsDb);
         char sQuery[9999];
 
-        if(g_bMysql)
-        {
-            Format(sQuery, sizeof(sQuery), g_sMysqlCreate, g_sSQLTable);
-            SQL_FastQuery(g_hStatsDb, sQuery);
-        }
-        if(!g_bMysql)
-        {
+        //if(g_bMysql)
+        //{
+        Format(sQuery, sizeof(sQuery), g_sMysqlCreate, g_sSQLTable);
+        SQL_FastQuery(g_hStatsDb, sQuery);
+        //}
+        //if(!g_bMysql)
+        //{
             //Format(sQuery, sizeof(sQuery), g_sSqliteCreate, g_sSQLTable);
             //SQL_FastQuery(g_hStatsDb, sQuery);
-        }
+        //}
 
 
         // I suspect these were used to update an existing table (which we do not need to do yet, since ours is new):
@@ -337,13 +348,21 @@ public void DB_Connect(bool firstload) {
     }
 }*/
 
-public void OnClientAuthorized(int client, const char[] auth) {
+//public void OnClientAuthorized(int client, const char[] auth) {
+//    ReloadClient(client);
+//}
+
+public void OnClientPostAdminCheck(int client) {
+    LogDebug("OnClientPostAdminCheck: %i", client);
     ReloadClient(client);
 }
 
 void ReloadClient(int client) {
     if (g_hStatsDb != INVALID_HANDLE){
+        LogDebug("Client %i in reloadclient db handle is valid!", client);
         LoadPlayer(client);
+    } else {
+        LogDebug("Client %i in reloadclient db handle is invalid!", client);
     }
 }
 
@@ -354,6 +373,7 @@ public void LoadPlayer(int client) {
     g_aStats[client].Reset();
     //g_aStats[client].SCORE = g_PointsStart;//default starting points (not needed for the RWS system)
     g_aSessionConnectedTime[client] = GetTime();
+    LogDebug("Client %i connect time: %i", client, g_aSessionConnectedTime[client]);
         
     char name[MAX_NAME_LENGTH];
     GetClientName(client, name, sizeof(name));
@@ -363,71 +383,73 @@ public void LoadPlayer(int client) {
     char auth[32];
     GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth));
     strcopy(g_aClientSteam[client], sizeof(g_aClientSteam[]), auth);
-    char ip[32];
-    GetClientIP(client, ip, sizeof(ip));
-    strcopy(g_aClientIp[client], sizeof(g_aClientIp[]), ip);
+    LogDebug("Added client %i auth id %s from received %s", client, g_aClientSteam[client], auth);
+    //char ip[32];
+    //GetClientIP(client, ip, sizeof(ip));
+    //strcopy(g_aClientIp[client], sizeof(g_aClientIp[]), ip);
     char query[10000];
 
     FormatEx(query, sizeof(query), g_sSqlRetrieveClient, g_sSQLTable, auth);
 
-    if (DEBUGGING) {
-        PrintToServer(query);
-        LogError("%s", query);
-    }
+    PrintToServer(query);
+    
     if (g_hStatsDb != INVALID_HANDLE){
-        SQL_TQuery(g_hStatsDb, SQL_LoadPlayerCallback, query, client);
+        LogDebug("stats db handle is valid in LoadPlayer! Starting query now... ");
+        PrintToServer("[yeet] stats db handle is valid in LoadPlayer! Starting query now... ");
+        LogDebug("LoadPlayer: Running query %s", query);
+        PrintToServer(query);
+        SQL_TQuery(g_hStatsDb, SQL_LoadPlayerCallback, query, client, DBPrio_High);
+    } else {
+        LogDebug("stats db handle is invalid in LoadPlayer!");
     }
 }
 
 public void SQL_LoadPlayerCallback(Handle owner, Handle hndl, const char[] error, any client)
 {
+    PrintToServer("LoadPlayerCallback ErrorResult: %s", error);
+    LogDebug("[SegRanks] Load Player Result: %s", error);
     if (!IsValidClient(client) || IsFakeClient(client)){
-        LogError("[SegRanks] Client %i is not a valid client during SQL_LoadPlayerCallback", client);
+        LogDebug("[SegRanks] Client %i is not a valid client during SQL_LoadPlayerCallback", client);
         return;
     }
 
     if (hndl == INVALID_HANDLE)
     {
-        LogError("[SegRanks] Load Player Fail: %s", error);
+        LogDebug("[SegRanks] Load Player Fail: %s", error);
+        PrintToServer("[SegRanks] Load Player Fail: %s", error);
         return;
     }
     if (!IsClientInGame(client))
     {
-        LogError("[SegRanks] Client %i is not in game yet during SQL_LoadPlayerCallback", client);
+        LogDebug("[SegRanks] Client %i is not in game yet during SQL_LoadPlayerCallback", client);
+        PrintToServer("[SegRanks] Client %i is not in game yet during SQL_LoadPlayerCallback", client);
         return;
     }
 
     char auth[64];
     GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth));
+
+    LogDebug("[SegRanks] Checking Client %i stored auth %s against %s", client, g_aClientSteam[client], auth);
+    PrintToServer("[SegRanks] Client %i is not in game yet during SQL_LoadPlayerCallback", client);
     if (!StrEqual(auth, g_aClientSteam[client])){
-        LogError("[SegRanks] Client %i stored auth %s not equal to current %s", client, g_aClientSteam[client], auth);
+        LogDebug("[SegRanks] Client %i stored auth %s not equal to current %s", client, g_aClientSteam[client], auth);
+        PrintToServer("[SegRanks] Client %i stored auth %s not equal to current %s", client, g_aClientSteam[client], auth);
         return;
     }
 
 
     //static const char g_sMysqlCreate[] = "CREATE TABLE IF NOT EXISTS `%s` (id INTEGER PRIMARY KEY, steam TEXT, name TEXT, lastip TEXT, connected NUMERIC, lastconnected NUMERIC, elo NUMERIC, rws NUMERIC, rounds_total NUMERIC, rounds_won NUMERIC, kills NUMERIC, deaths NUMERIC, assists NUMERIC, suicides NUMERIC, teamkills NUMERIC, headshots NUMERIC, total_damage NUMERIC, mvp NUMERIC, matches_won NUMERIC, matches_lost NUMERIC, matches_tied NUMERIC) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+    //static const char g_sMysqlCreate[] = "CREATE TABLE IF NOT EXISTS `%s` (id INTEGER PRIMARY KEY, steam TEXT, name TEXT, elo FLOAT, rws FLOAT, rounds_total NUMERIC) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
     if (SQL_HasResultSet(hndl) && SQL_FetchRow(hndl))
     {
         //Player infos
-        g_aStats[client].ELO = SQL_FetchFloat(hndl, 6);
-        g_aStats[client].RWS = SQL_FetchFloat(hndl, 7);
-        g_aStats[client].ROUNDS_TOTAL = SQL_FetchInt(hndl, 8);
-        LogError("[SegRanks] Client %i has results set! Rounds Total: %i", client, g_aStats[client].ROUNDS_TOTAL);
-        g_aStats[client].ROUNDS_WON = SQL_FetchInt(hndl, 9);
-        g_aStats[client].KILLS = SQL_FetchInt(hndl, 10);
-        g_aStats[client].DEATHS = SQL_FetchInt(hndl, 11);
-        g_aStats[client].ASSISTS = SQL_FetchInt(hndl, 12);
-        g_aStats[client].SUICIDES = SQL_FetchInt(hndl, 13);
-        g_aStats[client].TEAMKILLS = SQL_FetchInt(hndl, 14);
-        g_aStats[client].HEADSHOTS = SQL_FetchInt(hndl, 15);
-        g_aStats[client].TOTAL_DAMAGE = SQL_FetchInt(hndl, 16);
-        g_aStats[client].MVP = SQL_FetchInt(hndl, 17);
-        g_aStats[client].MATCHES_WON = SQL_FetchInt(hndl, 18);
-        g_aStats[client].MATCHES_LOST = SQL_FetchInt(hndl, 19);
-        g_aStats[client].MATCHES_TIED = SQL_FetchInt(hndl, 20);
+        g_aStats[client].ELO = SQL_FetchFloat(hndl, 3);
+        g_aStats[client].RWS = SQL_FetchFloat(hndl, 4);
+        g_aStats[client].ROUNDS_TOTAL = SQL_FetchInt(hndl, 5);
+        LogDebug("[SegRanks] Client %i has results set! Rounds Total: %i", client, g_aStats[client].ROUNDS_TOTAL);
         
     } else {
-        LogError("[SegRanks] Client %i had no results set, trying to init a new set in db.", client);
+        LogDebug("[SegRanks] Client %i had no results set, trying to init a new set in db.", client);
         SegfaultRanks_MessageToAll("[SegRanks] Client %i had no results set, trying to init a new set in db.", client);
         char query[10000];
         char sEscapeName[MAX_NAME_LENGTH * 2 + 1];
@@ -435,13 +457,13 @@ public void SQL_LoadPlayerCallback(Handle owner, Handle hndl, const char[] error
 
         //static const char g_sMysqlCreate[] = "CREATE TABLE IF NOT EXISTS `%s` (id INTEGER PRIMARY KEY, steam TEXT, name TEXT, lastip TEXT, connected NUMERIC, lastconnected NUMERIC, elo NUMERIC, rws NUMERIC, rounds_total NUMERIC, rounds_won NUMERIC, kills NUMERIC, deaths NUMERIC, assists NUMERIC, suicides NUMERIC, teamkills NUMERIC, headshots NUMERIC, total_damage NUMERIC, mvp NUMERIC, matches_won NUMERIC, matches_lost NUMERIC, matches_tied NUMERIC) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
         //static const char g_sSqlInitInsert[] = "INSERT INTO `%s` VALUES (NULL,'%s','%s','%s','0','0','500.0','0.0','0','0','0','0','0','0','0','0','0','0','0','0','0');";
-        Format(query, sizeof(query), g_sSqlInitInsert, g_sSQLTable, g_aClientSteam[client], sEscapeName, g_aClientIp[client]);
+        Format(query, sizeof(query), g_sSqlInitInsert, g_sSQLTable, g_aClientSteam[client], sEscapeName);
         SQL_TQuery(g_hStatsDb, SQL_NothingCallback, query, _, DBPrio_High);
 
-        if (DEBUGGING) {
-            PrintToServer(query);
-            LogError("%s", query);
-        }
+ 
+        PrintToServer(query);
+        LogDebug("SQL_LoadPlayerCallback: %s", query);
+
     }
     SegfaultRanks_MessageToAll("Player Now On DB %i", client);
     OnDB[client] = true;
@@ -463,7 +485,7 @@ public void SQL_PurgeCallback(Handle owner, Handle hndl, const char[] error, any
 {
     if (hndl == INVALID_HANDLE)
     {
-        LogError("[SegRank] Query Fail: %s", error);
+        LogDebug("[SegRank] Query Fail: %s", error);
         return;
     }
 
@@ -479,7 +501,7 @@ public void SQL_NothingCallback(Handle owner, Handle hndl, const char[] error, a
 {
     if (hndl == INVALID_HANDLE)
     {
-        LogError("[SegRank] Query Fail: %s", error);
+        LogDebug("[SegRank] Query Fail: %s", error);
         return;
     }
 }
@@ -499,9 +521,8 @@ public void OnPluginEnd() {
             char query[4000];
 
             //static const char g_sSqlSave[] = "UPDATE `%s` SET name='%s',lastip='%s',elo='%f',rws='%f',rounds_total='%i',rounds_won='%i',kills='%i',deaths='%i',assists='%i',suicides='%i',teamkills='%i',headshots='%i',total_damage='%i',mvp ='%i',matches_won='%i',matches_lost='%i',matches_tied='%s' WHERE steam = '%s';";
-            Format(query, sizeof(query), g_sSqlSave, g_sSQLTable, sEscapeName, g_aClientIp[client], g_aStats[client].ELO, g_aStats[client].RWS, g_aStats[client].ROUNDS_TOTAL, g_aStats[client].ROUNDS_WON,
-                g_aStats[client].KILLS, g_aStats[client].DEATHS, g_aStats[client].ASSISTS, g_aStats[client].SUICIDES, g_aStats[client].TEAMKILLS, g_aStats[client].HEADSHOTS, g_aStats[client].TOTAL_DAMAGE,
-                g_aStats[client].MVP, g_aStats[client].MATCHES_WON, g_aStats[client].MATCHES_LOST, g_aStats[client].MATCHES_TIED, g_aClientSteam[client]);
+            //"UPDATE `%s` SET name='%s',elo='%f',rws='%f',rounds_total='%i' WHERE steam = '%s';"
+            Format(query, sizeof(query), g_sSqlSave, g_sSQLTable, sEscapeName, g_aStats[client].ELO, g_aStats[client].RWS, g_aStats[client].ROUNDS_TOTAL, g_aClientSteam[client]);
 
             LogMessage(query);
             SQL_FastQuery(g_hStatsDb, query);
@@ -535,26 +556,23 @@ public void SavePlayerData(int client) {
     char query[4000];
 
     //static const char g_sSqlSave[] = "UPDATE `%s` SET name='%s',lastip='%s',elo='%f',rws='%f',rounds_total='%i',rounds_won='%i',kills='%i',deaths='%i',assists='%i',suicides='%i',teamkills='%i',headshots='%i',total_damage='%i',mvp ='%i',matches_won='%i',matches_lost='%i',matches_tied='%s' WHERE steam = '%s';";
-    Format(query, sizeof(query), g_sSqlSave, g_sSQLTable, sEscapeName, g_aClientIp[client], g_aStats[client].ELO, g_aStats[client].RWS, g_aStats[client].ROUNDS_TOTAL, g_aStats[client].ROUNDS_WON,
-        g_aStats[client].KILLS, g_aStats[client].DEATHS, g_aStats[client].ASSISTS, g_aStats[client].SUICIDES, g_aStats[client].TEAMKILLS, g_aStats[client].HEADSHOTS, g_aStats[client].TOTAL_DAMAGE,
-        g_aStats[client].MVP, g_aStats[client].MATCHES_WON, g_aStats[client].MATCHES_LOST, g_aStats[client].MATCHES_TIED, g_aClientSteam[client]);
+    Format(query, sizeof(query), g_sSqlSave, g_sSQLTable, sEscapeName, g_aStats[client].ELO, g_aStats[client].RWS, g_aStats[client].ROUNDS_TOTAL, g_aClientSteam[client]);
 
     LogMessage(query);
     SQL_FastQuery(g_hStatsDb, query);
 
     SQL_TQuery(g_hStatsDb, SQL_SaveCallback, query, client, DBPrio_High);
-       
-    if (DEBUGGING) {
-        PrintToServer(query);
-        LogError("%s", query);
-    }
+
+    PrintToServer(query);
+    LogDebug("SavePlayerData: %s", query);
+
 }
 
 public void SQL_SaveCallback(Handle owner, Handle hndl, const char[] error, any client)
 {
     if (hndl == INVALID_HANDLE)
     {
-        LogError("[SegRank] Save Player Fail: %s", error);
+        LogDebug("[SegRank] Save Player Fail: %s", error);
         return;
     }
     
