@@ -95,6 +95,21 @@ stock bool OnActiveTeam(int client) {
 	return team == CS_TEAM_CT || team == CS_TEAM_T;
 }
 
+public bool IsOnDb(int client) { return userData[client].on_db; }
+
+// Re-Usable checks for wether or not we should rank players right now
+bool ShouldRank() {
+    // ranks should be calculated if it is not warmup, and there are at least
+    // the min player count (2 by default)
+    // TODO: add check for if ranking is by round or by match either here or
+    // somewhere else
+    return !CheckIfWarmup() && g_MinimumPlayers > GetCurrentPlayers();
+}
+
+// returns true if it is currently the warmup period
+bool CheckIfWarmup() { return GameRules_GetProp("m_bWarmupPeriod") == 1; }
+
+
 
 // cookies
 

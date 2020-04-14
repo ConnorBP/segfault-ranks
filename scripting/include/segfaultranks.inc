@@ -29,7 +29,7 @@ enum struct UserData {
     this.on_db = false;
 
     this.id = 0;
-    this.display_name = "NONAME";
+    this.display_name = "";
     this.steamid2 = "";
     this.discord = "";
     this.elo = 0.0;
@@ -46,8 +46,26 @@ enum struct UserData {
     this.rounds_total = 0;
     this.round_points = 0;
   }
+
   void ResetRound() {
     this.round_points = 0;
+  }
+
+  // if steam auth and name are set, then this can be called to load a user from the database
+  bool LoadData() {
+    if (this.id != 0) {
+      //load using database id method instead
+
+      //after loading and success return true
+      return true;
+    } else {
+      //load using steamid lookup/init method
+      if(!strcmp(this.steamid2, "") && !strcmp(this.steamid2, "BOT") && !strcmp(this.steamid2, "GOTV")) {
+        return true;
+      } else {
+        return false;
+      }
+    }
   }
 }
 

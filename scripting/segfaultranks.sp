@@ -10,53 +10,45 @@
 #include "include/segfaultranks.inc"
 #include "segfaultranks/util.sp"
 #include <logdebug>
-
 //#define AUTH_METHOD AuthId_Steam2
 
-
-bool g_bEnabled = true; // TODO add a convar to disable this plugin
-
-// User Data Cache
+// Plugin Enabled State
+bool pluginEnabled = true; // TODO add a convar to disable this plugin
 
 // Local cache of state user stats
 UserData userData[MAXPLAYERS + 1];
 
 // convar local variables
-
 // minimum players required for ranks to calculate
-int g_MinimumPlayers = 2;
-int g_RankMode = 1;
-// int g_DaysToNotShowOnRank;
-int g_MinimalRounds = 0;
-bool g_bRankCache = false;
+int minimumPlayers = 2;
+// minimum rounds played required before user is shown on leaderboard
+int minimumRounds = 0;
 
 // Convars
+ConVar cvarMessagePrefix;
+// wether or not users can .stats other players
+ConVar cvarAllowStatsOtherCommand;
+ConVar cvarMinimumPlayers;
+ConVar cvarMinimumRounds;
 
-ConVar g_MessagePrefixCvar;
-
-ConVar g_AllowStatsOtherCommandCvar;
-// ConVar g_RecordStatsCvar;
-// ConVar g_cvarAutopurge;
-ConVar g_cvarMinimumPlayers;
-ConVar g_cvarRankMode;
-// ConVar g_cvarDaysToNotShowOnRank;
-ConVar g_cvarMinimalRounds;
-ConVar g_cvarRankCache;
-// ConVar g_RankEachRoundCvar;
-// ConVar g_SetEloRanksCvar;
-// ConVar g_ShowRWSOnScoreboardCvar
-// ConVar g_ShowRankOnScoreboardCvar;
-
+// natives for use by external plugins
 #include "segfaultranks/natives.sp"
 
-public
-Plugin myinfo = {name = "CS:GO RWS Ranking System", author = "segfault",
-                 description =
-                     "Keeps track of user rankings based on an RWS Elo system",
-                 version = PLUGIN_VERSION, url = "https://segfault.club"};
+// for http requests
+#include <json>
+//#undef REQUIRE_EXTENSIONS
+#include <SteamWorks>
 
-public
-void OnPluginStart() {
+
+public Plugin myinfo = {
+    name = "CS:GO RWS Ranking System",
+    author = "segfault",
+    description = "Keeps track of user rankings based on an RWS Elo system",
+    version = PLUGIN_VERSION,
+    url = "https://segfault.club"
+};
+
+public void OnPluginStart() {
     // g_cvarDebugEnabled = CreateConvar(DEBUG_CVAR, "segfaultranks", "is
     // segfaultranks debugging filename?");
     InitDebugLog(DEBUG_CVAR, "segfaultranks");
@@ -66,24 +58,37 @@ void OnPluginStart() {
     // Initiate the rankings cache Global Adt Array
     // g_steamRankCache = CreateArray(ByteCountToCells(128));
 
-    InitializeDatabaseConnection();
-
     HookEvents();
     RegisterCommands();
     RegisterConvars();
     RegisterForwards();
 }
 
-void GetCvarValues() {
-    g_MinimumPlayers = g_cvarMinimumPlayers.IntValue;
-    g_RankMode = g_cvarRankMode.IntValue;
-    // g_DaysToNotShowOnRank = g_cvarDaysToNotShowOnRank.IntValue;
-    g_MinimalRounds = g_cvarMinimalRounds.IntValue;
-    g_bRankCache = g_cvarRankCache.BoolValue;
-}
-
 void InitializeDatabaseConnection() {
-    //  In here we will initialize a connection to our web service
+
+    if (GetFeatureStatus(FeatureType_Native, "SteamWorks_CreateHTTPRequest") != FeatureStatus_Available) {
+        LogError("You must have either the SteamWorks extension installed to run segfaultranks");
+        SetFailState("Cannot start segfault stats without steamworks extension.");
+    }
+    //  In here we will verify that the webservice is indeed running, and authorize ourselves with the api
+
+    /*if (GetFeatureStatus(FeatureType_Native, "SteamWorks_CreateHTTPRequest") == FeatureStatus_Available) {
+        Handle authRequest = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, url);
+        if (authRequest == INVALID_HANDLE) {
+            LogError("Failed to create HTTP request using url: %s", url);
+            return;
+        }
+
+        SteamWorks_SetHTTPCallbacks(authRequest, SteamWorks_OnMapRecieved);
+        SteamWorks_SetHTTPRequestContextValue(authRequest, replyToSerial, replySource);
+        SteamWorks_SetHTTPRequestGetOrPostParameter(authRequest, "user", username);
+        SteamWorks_SetHTTPRequestGetOrPostParameter(authRequest, "password", password);
+        SteamWorks_SendHTTPRequest(authRequest);
+
+    } else {
+        LogError("You must have either the SteamWorks extension installed to get the current motw");
+    }*/
+   
 }
 
 void HookEvents() {
@@ -153,61 +158,57 @@ void RegisterConvars() {
     AutoExecConfig(true, "segfaultranks", "sourcemod");
 }
 
+void GetCvarValues() {
+    minimumPlayers = cvarMinimumPlayers.IntValue;
+    minimumRounds = cvarMinimalRounds.IntValue;
+}
+
 void RegisterForwards() {
-
+  // None
 }
 
-public
-void OnConfigsExecuted() {
+public void OnConfigsExecuted() {
     GetCvarValues();
-    DB_Init_Stuff();
+    InitializeDatabaseConnection();
 }
 
-void BuildRankCache() {}
-
-public
-void DB_Connect() {}
-
-public
-void OnClientPostAdminCheck(int client) {
+public void OnClientPostAdminCheck(int client) {
     LogDebug("OnClientPostAdminCheck: %i", client);
     ReloadClient(client);
 }
 
 void ReloadClient(int client) {
-    if (g_hStatsDb != INVALID_HANDLE) {
-        LogDebug("Client %i in reloadclient db handle is valid!", client);
+    if (apiConnected) {
+        LogDebug("Started Load operation for client %i.", client);
         LoadPlayer(client);
     } else {
-        LogDebug("Client %i in reloadclient db handle is invalid!", client);
+        LogDebug("Could not load client %i, api is not connected!", client);
     }
 }
 
-public
-void LoadPlayer(int client) {
-    userData[client].on_db = false;
-    // stats
-    userData[client].Reset();
-
-    LogDebug("Client %i connect time: %i", client,
-             g_aSessionConnectedTime[client]);
+public void LoadPlayer(int client) {
+    // Clear any previous users data stored in this cache slot
+    userData[client].Remove();
 
     char name[MAX_NAME_LENGTH];
     GetClientName(client, name, sizeof(name));
     ReplaceString(name, sizeof(name), "'", "");
-
-    strcopy(g_aClientName[client], MAX_NAME_LENGTH, name);
+    strcopy(userData[client].display_name, MAX_NAME_LENGTH, name);
 
     char auth[32];
     GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth));
-    strcopy(g_aClientSteam[client], sizeof(g_aClientSteam[]), auth);
+    strcopy(userData[client].steamid2, sizeof(userData[client].steamid2), auth);
 
     LogDebug("Added client %i auth id %s from received %s", client,
-             g_aClientSteam[client], auth);
+             userData[client].steamid2, auth);
+
+    //TODO: CACHE PLAYERS DATABASE INDEX IN A CLIENTPREFS COOKIE SO WE CAN JUST LOAD THEM USING THE INDEX API AND AVOID RUNNING THE STEAMID LOOKUP EVERY TIME
+
+    // Now that we have loaded the clients steam auth and username, it is time to initialize them on the database or load them
+    userData[client].LoadData();
 }
 
-public
-void OnPluginEnd() {
+public void OnPluginEnd() {
     if (!g_bEnabled) {
         return;
     }
@@ -219,8 +220,7 @@ void OnPluginEnd() {
  * each round.
  */
 
-public
-Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast) {
+public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast) {
     if (CheckIfWarmup()) {
         return;
     }
@@ -236,8 +236,7 @@ Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast) {
     }
 }
 
-public
-Action Event_Bomb(Event event, const char[] name, bool dontBroadcast) {
+public Action Event_Bomb(Event event, const char[] name, bool dontBroadcast) {
     //  don't count warmup rounds towards RWS
     if (CheckIfWarmup()) {
         return;
@@ -247,8 +246,7 @@ Action Event_Bomb(Event event, const char[] name, bool dontBroadcast) {
     userData[client].ROUND_POINTS += 50;
 }
 
-public
-Action Event_DamageDealt(Event event, const char[] name, bool dontBroadcast) {
+public Action Event_DamageDealt(Event event, const char[] name, bool dontBroadcast) {
     if (CheckIfWarmup()) {
         return;
     }
@@ -264,8 +262,7 @@ Action Event_DamageDealt(Event event, const char[] name, bool dontBroadcast) {
     }
 }
 
-public
-bool HelpfulAttack(int attacker, int victim) {
+public bool HelpfulAttack(int attacker, int victim) {
     if (!IsValidClient(attacker) || !IsValidClient(victim)) {
         return false;
     }
@@ -277,8 +274,7 @@ bool HelpfulAttack(int attacker, int victim) {
 /**
  * Round end event, updates rws values for everyone.
  */
-public
-Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast) {
+public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast) {
     if (!ShouldRank()) {
         // reset round points here anyways so that they don't accidentaly affect
         // the first real round
@@ -346,27 +342,9 @@ void SetClientScoreboard(int client, int value) {
     CS_SetClientContributionScore(client, value);
 }
 
-// some utils (TODO MOVE THIS TO UTIL FILE)
-
-public
-bool IsOnDb(int client) { return userData[client].on_db; }
-
-// Re-Usable checks for wether or not we should rank players right now
-bool ShouldRank() {
-    // ranks should be calculated if it is not warmup, and there are at least
-    // the min player count (2 by default)
-    // TODO: add check for if ranking is by round or by match either here or
-    // somewhere else
-    return !CheckIfWarmup() && g_MinimumPlayers > GetCurrentPlayers();
-}
-
-// returns true if it is currently the warmup period
-bool CheckIfWarmup() { return GameRules_GetProp("m_bWarmupPeriod") == 1; }
-
 // Commands
 
-public
-Action Command_DumpRWS(int client, int args) {
+public Action Command_DumpRWS(int client, int args) {
     for (int i = 1; i <= MaxClients; i++) {
         if (IsPlayer(i) && IsOnDb(i)) {
             ReplyToCommand(client, "%L has RWS=%f, roundsplayed=%d", i,
@@ -377,8 +355,7 @@ Action Command_DumpRWS(int client, int args) {
     return Plugin_Handled;
 }
 
-public
-Action Command_RWS(int client, int args) {
+public Action Command_RWS(int client, int args) {
     if (g_AllowStatsOtherCommandCvar.IntValue == 0) {
         return Plugin_Handled;
     }
