@@ -9,7 +9,7 @@ static char _colorCodes[][] =  { "\x01", "\x02", "\x03", "\x04", "\x05", "\x06",
 
 
 // ranks cache
-Handle g_steamRankCache;
+//Handle g_steamRankCache;
 
 /** Chat aliases loaded **/
 ArrayList g_ChatAliases;
@@ -17,7 +17,7 @@ ArrayList g_ChatAliasesCommands;
 ArrayList g_ChatAliasesModes;
 
 
-void Colorize(char[] msg, int size, bool stripColor = false) {
+stock void Colorize(char[] msg, int size, bool stripColor = false) {
 	for (int i = 0; i < sizeof(_colorNames); i++) {
 		if (stripColor)
 			ReplaceString(msg, size, _colorNames[i], "\x01"); // replace with white
@@ -29,20 +29,20 @@ void Colorize(char[] msg, int size, bool stripColor = false) {
 /**
  * Returns if a client is valid.
  */
-bool IsValidClient(int client) {
+stock bool IsValidClient(int client) {
 	return client > 0 && client <= MaxClients && IsClientConnected(client) && IsClientInGame(client);
 }
 
-bool IsPlayer(int client) {
+stock bool IsPlayer(int client) {
 	return IsValidClient(client) && !IsFakeClient(client);
 }
 
-bool IsPossibleLeader(int client) {
+stock bool IsPossibleLeader(int client) {
 	return client > 0 && client <= MaxClients && IsClientConnected(client) && !IsFakeClient(client);
 }
 
 
-int GetCurrentPlayers() 
+stock int GetCurrentPlayers() 
 {
 	int count;
 	for (int i = 1; i <= MaxClients; i++) {
@@ -56,7 +56,7 @@ int GetCurrentPlayers()
 /**
  * Returns the number of human clients on a team.
  */
-int GetNumHumansOnTeam(int team) {
+stock int GetNumHumansOnTeam(int team) {
 	int count = 0;
 	for (int i = 1; i <= MaxClients; i++) {
 		if (IsValidClient(i) && !IsFakeClient(i))
@@ -68,7 +68,7 @@ int GetNumHumansOnTeam(int team) {
 /**
  * Returns the number of clients that are actual players in the game.
  */
-int GetRealClientCount() {
+stock int GetRealClientCount() {
 	int clients = 0;
 	for (int i = 1; i <= MaxClients; i++) {
 		if (IsPlayer(i)) {
@@ -78,7 +78,7 @@ int GetRealClientCount() {
 	return clients;
 }
 
-int CountAlivePlayersOnTeam(int team) {
+stock int CountAlivePlayersOnTeam(int team) {
 	int count = 0;
 	for (int i = 1; i <= MaxClients; i++) {
 		if (IsPlayer(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
@@ -87,7 +87,7 @@ int CountAlivePlayersOnTeam(int team) {
 	return count;
 }
 
-bool OnActiveTeam(int client) {
+stock bool OnActiveTeam(int client) {
 	if (!IsPlayer(client))
 		return false;
 	
@@ -98,7 +98,7 @@ bool OnActiveTeam(int client) {
 public bool IsOnDb(int client) { return userData[client].on_db; }
 
 // Re-Usable checks for wether or not we should rank players right now
-bool ShouldRank() {
+stock bool ShouldRank() {
     // ranks should be calculated if it is not warmup, and there are at least
     // the min player count (2 by default)
     // TODO: add check for if ranking is by round or by match either here or
@@ -107,7 +107,7 @@ bool ShouldRank() {
 }
 
 // returns true if it is currently the warmup period
-bool CheckIfWarmup() { return GameRules_GetProp("m_bWarmupPeriod") == 1; }
+stock bool CheckIfWarmup() { return GameRules_GetProp("m_bWarmupPeriod") == 1; }
 
 
 

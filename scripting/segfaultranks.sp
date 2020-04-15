@@ -32,17 +32,18 @@ public UserData userData[MAXPLAYERS + 1];
 // minimum players required for ranks to calculate
 int minimumPlayers = 2;
 // minimum rounds played required before user is shown on leaderboard
-int minimumRounds = 0;
+//int minimumRounds = 0;
 
 // Convars
 ConVar cvarMessagePrefix;
 // wether or not users can .stats other players
-ConVar cvarAllowStatsOtherCommand;
-ConVar cvarMinimumPlayers;
-ConVar cvarMinimumRounds;
+//ConVar cvarAllowStatsOtherCommand;
+//ConVar cvarMinimumPlayers;
+//ConVar cvarMinimumRounds;
 
 
 #include "segfaultranks/util.sp"
+#include "segfaultranks/server_functions.sp"
 // natives for use by external plugins
 #include "segfaultranks/natives.sp"
 
@@ -107,12 +108,12 @@ void HookEvents() {
 }
 
 void RegisterCommands() {
-    RegAdminCmd("sm_dumprws", Command_DumpRWS, ADMFLAG_KICK,
-                "Dumps all player historical rws and rounds played");
+    RegAdminCmd("sm_dumprws", Command_DumpRWS, ADMFLAG_KICK,"Dumps all player historical rws and rounds played");
+    RegAdminCmd("sm_testsend", Command_TestSend, ADMFLAG_KICK,"Sends a fake test-round to the database for testing purposes. Will be removed before release.");
     RegConsoleCmd("sm_rws", Command_RWS, "Show player's historical rws");
     RegConsoleCmd("sm_rank", Command_Rank, "Show player's ELO Rank");
-    RegConsoleCmd("sm_top", Command_Leaderboard,
-                  "Show player's leaderboard position");
+    RegConsoleCmd("sm_top", Command_Leaderboard,"Show player's leaderboard position");
+
     // SegfaultRanks_AddChatAlias(".rws", "sm_rws");
     // SegfaultRanks_AddChatAlias(".stats", "sm_rws");
     // SegfaultRanks_AddChatAlias(".rank", "sm_rank");
@@ -123,18 +124,18 @@ void RegisterConvars() {
 
     cvarMessagePrefix = CreateConVar("sm_segfaultranks_message_prefix", "[{PURPLE}Ranks{NORMAL}]","The tag applied before plugin messages. If you want no tag, you can set an empty string here.");
 
-    cvarAllowStatsOtherCommand = CreateConVar("sm_segfaultranks_allow_stats_other", "1", "Whether players can use the .rws or !rws command on other players");
+    //cvarAllowStatsOtherCommand = CreateConVar("sm_segfaultranks_allow_stats_other", "1", "Whether players can use the .rws or !rws command on other players");
 
-    cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
+    //cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
 
-    cvarMinimumRounds = CreateConVar("sm_segfaultrank_minimal_rounds", "0","Minimal rounds played for rank to be displayed", _, true, 0.0);
+    //cvarMinimumRounds = CreateConVar("sm_segfaultrank_minimal_rounds", "0","Minimal rounds played for rank to be displayed", _, true, 0.0);
 
     AutoExecConfig(true, "segfaultranks", "sourcemod");
 }
 
 void GetCvarValues() {
-    minimumPlayers = cvarMinimumPlayers.IntValue;
-    minimumRounds = cvarMinimumRounds.IntValue;
+    //minimumPlayers = cvarMinimumPlayers.IntValue;
+    //minimumRounds = cvarMinimumRounds.IntValue;
 }
 
 void RegisterForwards() {
@@ -173,8 +174,7 @@ public void LoadPlayer(int client) {
     GetClientAuthId(client, AuthId_Steam2, userData[client].steamid2, 64);
     //strcopy(userData[client].steamid2, sizeof(userData[client].steamid2), auth);
 
-    LogDebug("Added client %i auth id %s from received %s", client,
-             userData[client].steamid2, auth);
+    LogDebug("Added client %i auth id %s", client, userData[client].steamid2);
 
     //TODO: CACHE PLAYERS DATABASE INDEX IN A CLIENTPREFS COOKIE SO WE CAN JUST LOAD THEM USING THE INDEX API AND AVOID RUNNING THE STEAMID LOOKUP EVERY TIME
 
@@ -255,7 +255,7 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
         // TODO
         for (int i = 1; i <= MaxClients; i++) {
             if (IsPlayer(i) && IsOnDb(i)) {
-                userData[i].round_points = 0;
+                userData[i].ResetRound();
             }
         }
         return;
@@ -266,14 +266,9 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
         if (IsPlayer(i) && IsOnDb(i)) {
             int team = GetClientTeam(i);
             if (team == CS_TEAM_CT || team == CS_TEAM_T) {
-                RWSUpdate(i, team == winner);
+                RoundUpdate(i, team == winner);
+                userData[i].ResetRound();
             }
-        }
-    }
-    for (int i = 1; i <= MaxClients; i++) {
-        if (IsPlayer(i) && IsOnDb(i)) {
-            userData[i].round_points = 0;
-            SavePlayerData(i);
         }
     }
 }
@@ -281,13 +276,12 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 /**
  * Here we apply magic updates to a player's rws based on the previous round.
  */
-static void RWSUpdate(int client, bool winner) {
+static void RoundUpdate(int client, bool winner) {
 // todo make minimumEnemies a cvar
 #define minimumEnemies 1
     int totalPlayers = 0;
     int teamPlayers = 0;
     int sum = 0;
-    int rws = 0;
     for (int i = 1; i <= MaxClients; i++) {
         if (IsPlayer(i)) {
             totalPlayers++;
@@ -298,26 +292,38 @@ static void RWSUpdate(int client, bool winner) {
         }
     }
 
-    if (teamPlayers > 0 && totalPlayers - teamCount >= minimumEnemies) {
-        //rws = update_on_server();
-        //localRws cache = serverRws localRoundsPlayed = serverROunds
+    if (teamPlayers > 0 && totalPlayers - teamPlayers >= minimumEnemies) {
+        //int rws = update_on_server();
+        if(winner) {
+            PrintToServer("client %i won the round and would have had it submitted here", client);
+        } else {
+            PrintToServer("client %i lost the round and would have had it submitted here", client);
+        }
 
     } else {
         return;
     }
 
-    //float alpha = GetAlphaFactor(client);
-    //userData[client].rws = (1.0 - alpha) * userData[client].rws + alpha * rws;
-    //userData[client].rounds_total++;
-    LogDebug("RoundUpdate(%L), alpha=%f, round_rws=%f, new_rws=%f", client,
-             alpha, rws, userData[client].rws);
 }
 
-void SetClientScoreboard(int client, int value) {
-    CS_SetClientContributionScore(client, value);
-}
+// void SetClientScoreboard(int client, int value) {
+//     CS_SetClientContributionScore(client, value);
+// }
 
 // Commands
+
+
+public Action Command_TestSend(int client, int args) {
+    if (IsPlayer(client)/* && IsOnDb(client)*/) {
+        if(SendNewRound(client, true, 300, 600, 5)) {
+            ReplyToCommand(client, "sent in a test round for you, currently with RWS=%f, roundsplayed=%d", userData[client].rws, userData[client].rounds_total);
+        } else {
+            ReplyToCommand(client, "Sending the new round resulted in an error before it sent.");
+        }
+    }
+
+    return Plugin_Handled;
+}
 
 public Action Command_DumpRWS(int client, int args) {
     for (int i = 1; i <= MaxClients; i++) {
