@@ -305,7 +305,9 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
  */
 static void RoundUpdate(int client, bool winner) {
 // todo make minimumEnemies a cvar
+// todo make minimumTeam
 #define minimumEnemies 1
+#define minimumTeam 1
     int totalPlayers = 0;
     int teamPlayers = 0;
     int sum = 0;
@@ -319,7 +321,16 @@ static void RoundUpdate(int client, bool winner) {
         }
     }
 
-    if (teamPlayers > 0 && totalPlayers - teamPlayers >= minimumEnemies) {
+
+    //temp debug stuff
+    //userData[client].round_points = 100;
+    //sum = 500;
+    //teamPlayers = 1;
+    //totalPlayers = 2;
+    // REMOVE ME
+
+    if (teamPlayers >= minimumTeam && totalPlayers - teamPlayers >= minimumEnemies) {
+        PrintToServer("RoundUpdate: Conditions met to update round.");
         if(SendNewRound(client, winner, userData[client].round_points, sum, teamPlayers)) {
             LogDebug("SendNewRound was a success for client: %i", client);
         } else {
@@ -332,6 +343,7 @@ static void RoundUpdate(int client, bool winner) {
         }
 
     } else {
+        PrintToServer("RoundUpdate: Conditions not met for RoundUpdate. TeamP:%i TotalP:%i ", teamPlayers, totalPlayers);
         return;
     }
 

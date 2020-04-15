@@ -95,7 +95,10 @@ stock bool OnActiveTeam(int client) {
 	return team == CS_TEAM_CT || team == CS_TEAM_T;
 }
 
-public bool IsOnDb(int client) { return userData[client].on_db; }
+public bool IsOnDb(int client) { 
+	return userData[client].on_db;
+	//return true;//TEMPORARY FOR DEBUG TODO:REMOVE
+}
 
 // Re-Usable checks for wether or not we should rank players right now
 stock bool ShouldRank() {
