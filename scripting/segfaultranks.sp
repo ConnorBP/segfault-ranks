@@ -163,7 +163,7 @@ public void OnClientPostAdminCheck(int client) {
 
 public void OnClientAuthorized(int client, const char[] auth) {
     LogDebug("OnClientAuthorized: %i auth: %s", client, auth);
-    if(client > 0 && client <= MaxClients && !strcmp("BOT", auth, false) && !strcmp("GOTV", auth, false)) {
+    if(client > 0 && client <= MaxClients && strcmp("BOT", auth, false) != 0 && strcmp("GOTV", auth, false) != 0) {
         userData[client].ClearData();
         strcopy(userData[client].steamid2, 64, auth);
         LogDebug("Client %i copied auth: %s", client, userData[client].steamid2);
@@ -320,7 +320,11 @@ static void RoundUpdate(int client, bool winner) {
     }
 
     if (teamPlayers > 0 && totalPlayers - teamPlayers >= minimumEnemies) {
-        //int rws = update_on_server();
+        if(SendNewRound(client, winner, userData[client].round_points, sum, teamPlayers)) {
+            LogDebug("SendNewRound was a success for client: %i", client);
+        } else {
+            LogDebug("Failed to SendNewRound for client: %i", client);
+        }
         if(winner) {
             PrintToServer("client %i won the round and would have had it submitted here", client);
         } else {
