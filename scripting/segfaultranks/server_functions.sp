@@ -1,5 +1,6 @@
 
-#define BASE_API_URL "http://localhost:1337/v1"
+//#define BASE_API_URL "http://localhost:1337/v1"
+#define BASE_API_URL baseApiUrl
 #define NEW_ROUND "newround"
 
 //Data required for submitting new round:

@@ -34,9 +34,11 @@ public UserData userData[MAXPLAYERS + 1];
 int minimumPlayers = 2;
 // minimum rounds played required before user is shown on leaderboard
 //int minimumRounds = 0;
+public char baseApiUrl[64] = "http://localhost:1337/v1";
 
 // Convars
 ConVar cvarMessagePrefix;
+ConVar cvarBaseApiUrl;
 // wether or not users can .stats other players
 //ConVar cvarAllowStatsOtherCommand;
 //ConVar cvarMinimumPlayers;
@@ -125,6 +127,8 @@ void RegisterConvars() {
 
     cvarMessagePrefix = CreateConVar("sm_segfaultranks_message_prefix", "[{PURPLE}Ranks{NORMAL}]","The tag applied before plugin messages. If you want no tag, you can set an empty string here.");
 
+    cvarBaseApiUrl = CreateConVar("segfaultranks_api_url", "http://localhost:1337/v1", "Whether players can use the .rws or !rws command on other players");
+
     //cvarAllowStatsOtherCommand = CreateConVar("sm_segfaultranks_allow_stats_other", "1", "Whether players can use the .rws or !rws command on other players");
 
     //cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
@@ -137,6 +141,7 @@ void RegisterConvars() {
 void GetCvarValues() {
     //minimumPlayers = cvarMinimumPlayers.IntValue;
     //minimumRounds = cvarMinimumRounds.IntValue;
+    cvarBaseApiUrl.GetString(baseApiUrl, sizeof(baseApiUrl));
 }
 
 void RegisterForwards() {
