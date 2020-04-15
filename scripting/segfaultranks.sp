@@ -2,21 +2,31 @@
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
+
+#include "include/segfaultranks.inc"
+
 #include <clientprefs>
 #include <cstrike>
 #include <sdktools>
 #include <sourcemod>
 
-#include "include/segfaultranks.inc"
-#include "segfaultranks/util.sp"
 #include <logdebug>
+
+// for http requests
+#include <json>
+#include <SteamWorks>
+
+
 //#define AUTH_METHOD AuthId_Steam2
 
 // Plugin Enabled State
 bool pluginEnabled = true; // TODO add a convar to disable this plugin
 
+// Keeps track of if the API has been authorized with yet.
+bool apiConnected = true; //TODO SHOULD BE FALSE BY DEFAULT IS TRUE FOR TESTING PURPOSES FOR NOW
+
 // Local cache of state user stats
-UserData userData[MAXPLAYERS + 1];
+public UserData userData[MAXPLAYERS + 1];
 
 // convar local variables
 // minimum players required for ranks to calculate
@@ -31,13 +41,10 @@ ConVar cvarAllowStatsOtherCommand;
 ConVar cvarMinimumPlayers;
 ConVar cvarMinimumRounds;
 
+
+#include "segfaultranks/util.sp"
 // natives for use by external plugins
 #include "segfaultranks/natives.sp"
-
-// for http requests
-#include <json>
-//#undef REQUIRE_EXTENSIONS
-#include <SteamWorks>
 
 
 public Plugin myinfo = {
@@ -113,54 +120,21 @@ void RegisterCommands() {
 }
 
 void RegisterConvars() {
-    g_MessagePrefixCvar = CreateConVar(
-        "sm_segfaultranks_message_prefix", "[{PURPLE}Ranks{NORMAL}]",
-        "The tag applied before plugin messages. If you want no "
-        "tag, you can set an empty string here.");
-    g_AllowStatsOtherCommandCvar = CreateConVar(
-        "sm_segfaultranks_allow_stats_other", "1",
-        "Whether players can use the .rws or !rws command on other players");
-    // g_RecordStatsCvar = CreateConVar("sm_segfaultranks_record_stats", "1",
-    // "Whether rws should be recorded while not in warmup (set to 0 to disable
-    // changing players rws stats)"); g_cvarAutopurge =
-    // CreateConVar("sm_segfaultranks_autopurge", "0", "Auto-Purge inactive
-    // players? X = Days  0 = Off", _, true, 0.0);
-    g_cvarMinimumPlayers =
-        CreateConVar("sm_segfaultranks_minimumplayers", "2",
-                     "Minimum players to start giving points", _, true, 0.0);
-    g_cvarRankMode =
-        CreateConVar("sm_segfaultrank_rank_mode", "1",
-                     "Rank by what? 1 = by rws 2 = by kdr 3 = by elo", _, true,
-                     1.0, true, 3.0);
-    // g_cvarDaysToNotShowOnRank = CreateConVar("sm_segfaultrank_timeout_days",
-    // "0", "Days inactive to not be shown on rank? X = days 0 = off", _, true,
-    // 0.0);
-    g_cvarMinimalRounds = CreateConVar(
-        "sm_segfaultrank_minimal_rounds", "0",
-        "Minimal rounds played for rank to be displayed", _, true, 0.0);
-    // g_RankEachRoundCvar = CreateConVar("sm_segfaultranks_rank_rounds", "1",
-    // "Sets if Elo ranks should be updated every round instead of at match end.
-    // (Useful for retake ranking)"); g_SetEloRanksCvar =
-    // CreateConVar("sm_segfaultranks_display_elo_ranks", "2", "Wether or not to
-    // display user ranks based on calculated total ELO. (S,G,A,B,etc) 0=Don't
-    // Display 1=Calculate elo ranks 2=Use top RWS", _, true, 0.0, true, 2.0);
-    // g_ShowRWSOnScoreboardCvar = CreateConVar("sm_segfaultranks_display_rws",
-    // "1", "Whether rws stats for current map are to be displayed on the ingame
-    // scoreboard in place of points."); g_ShowRankOnScoreboardCvar =
-    // CreateConVar("sm_segfaultranks_display_rank", "1", "Whether rws stats for
-    // current map are to be displayed on the ingame scoreboard in place of
-    // points.");
-    g_cvarRankCache = CreateConVar(
-        "sm_segfaultranks_rank_cache", "0",
-        "Get player rank via cache, auto build cache on every OnMapStart.", _,
-        true, 0.0, true, 1.0);
+
+    cvarMessagePrefix = CreateConVar("sm_segfaultranks_message_prefix", "[{PURPLE}Ranks{NORMAL}]","The tag applied before plugin messages. If you want no tag, you can set an empty string here.");
+
+    cvarAllowStatsOtherCommand = CreateConVar("sm_segfaultranks_allow_stats_other", "1", "Whether players can use the .rws or !rws command on other players");
+
+    cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
+
+    cvarMinimumRounds = CreateConVar("sm_segfaultrank_minimal_rounds", "0","Minimal rounds played for rank to be displayed", _, true, 0.0);
 
     AutoExecConfig(true, "segfaultranks", "sourcemod");
 }
 
 void GetCvarValues() {
     minimumPlayers = cvarMinimumPlayers.IntValue;
-    minimumRounds = cvarMinimalRounds.IntValue;
+    minimumRounds = cvarMinimumRounds.IntValue;
 }
 
 void RegisterForwards() {
@@ -188,16 +162,16 @@ void ReloadClient(int client) {
 
 public void LoadPlayer(int client) {
     // Clear any previous users data stored in this cache slot
-    userData[client].Remove();
+    userData[client].ClearData();
 
     char name[MAX_NAME_LENGTH];
     GetClientName(client, name, sizeof(name));
     ReplaceString(name, sizeof(name), "'", "");
     strcopy(userData[client].display_name, MAX_NAME_LENGTH, name);
 
-    char auth[32];
-    GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth));
-    strcopy(userData[client].steamid2, sizeof(userData[client].steamid2), auth);
+    //char auth[32];
+    GetClientAuthId(client, AuthId_Steam2, userData[client].steamid2, 64);
+    //strcopy(userData[client].steamid2, sizeof(userData[client].steamid2), auth);
 
     LogDebug("Added client %i auth id %s from received %s", client,
              userData[client].steamid2, auth);
@@ -209,7 +183,7 @@ public void LoadPlayer(int client) {
 }
 
 public void OnPluginEnd() {
-    if (!g_bEnabled) {
+    if (!pluginEnabled) {
         return;
     }
 }
@@ -232,7 +206,7 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
     bool validVictim = IsValidClient(victim);
 
     if (validAttacker && validVictim && HelpfulAttack(attacker, victim)) {
-        userData[attacker].ROUND_POINTS += 100;
+        userData[attacker].round_points += 100;
     }
 }
 
@@ -243,7 +217,7 @@ public Action Event_Bomb(Event event, const char[] name, bool dontBroadcast) {
     }
 
     int client = GetClientOfUserId(event.GetInt("userid"));
-    userData[client].ROUND_POINTS += 50;
+    userData[client].round_points += 50;
 }
 
 public Action Event_DamageDealt(Event event, const char[] name, bool dontBroadcast) {
@@ -258,7 +232,7 @@ public Action Event_DamageDealt(Event event, const char[] name, bool dontBroadca
 
     if (validAttacker && validVictim && HelpfulAttack(attacker, victim)) {
         int damage = event.GetInt("dmg_health");
-        userData[attacker].ROUND_POINTS += damage;
+        userData[attacker].round_points += damage;
     }
 }
 
@@ -281,7 +255,7 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
         // TODO
         for (int i = 1; i <= MaxClients; i++) {
             if (IsPlayer(i) && IsOnDb(i)) {
-                userData[i].ROUND_POINTS = 0;
+                userData[i].round_points = 0;
             }
         }
         return;
@@ -298,7 +272,7 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
     }
     for (int i = 1; i <= MaxClients; i++) {
         if (IsPlayer(i) && IsOnDb(i)) {
-            userData[i].ROUND_POINTS = 0;
+            userData[i].round_points = 0;
             SavePlayerData(i);
         }
     }
@@ -313,29 +287,30 @@ static void RWSUpdate(int client, bool winner) {
     int totalPlayers = 0;
     int teamPlayers = 0;
     int sum = 0;
+    int rws = 0;
     for (int i = 1; i <= MaxClients; i++) {
         if (IsPlayer(i)) {
             totalPlayers++;
             if (GetClientTeam(i) == GetClientTeam(client)) {
-                sum += userData[i].ROUND_POINTS;
-                teamCount++;
+                sum += userData[i].round_points;
+                teamPlayers++;
             }
         }
     }
 
-    if (teamCount > 0 && totalPlayers - teamCount >= minimumEnemies) {
-        rws = update_on_server();
-        localRws cache = serverRws localRoundsPlayed = serverROunds
+    if (teamPlayers > 0 && totalPlayers - teamCount >= minimumEnemies) {
+        //rws = update_on_server();
+        //localRws cache = serverRws localRoundsPlayed = serverROunds
 
     } else {
         return;
     }
 
-    float alpha = GetAlphaFactor(client);
-    userData[client].RWS = (1.0 - alpha) * userData[client].RWS + alpha * rws;
-    userData[client].ROUNDS_TOTAL++;
+    //float alpha = GetAlphaFactor(client);
+    //userData[client].rws = (1.0 - alpha) * userData[client].rws + alpha * rws;
+    //userData[client].rounds_total++;
     LogDebug("RoundUpdate(%L), alpha=%f, round_rws=%f, new_rws=%f", client,
-             alpha, rws, userData[client].RWS);
+             alpha, rws, userData[client].rws);
 }
 
 void SetClientScoreboard(int client, int value) {
@@ -348,7 +323,7 @@ public Action Command_DumpRWS(int client, int args) {
     for (int i = 1; i <= MaxClients; i++) {
         if (IsPlayer(i) && IsOnDb(i)) {
             ReplyToCommand(client, "%L has RWS=%f, roundsplayed=%d", i,
-                           userData[i].RWS, userData[i].ROUNDS_TOTAL);
+                           userData[i].rws, userData[i].rounds_total);
         }
     }
 
@@ -356,9 +331,9 @@ public Action Command_DumpRWS(int client, int args) {
 }
 
 public Action Command_RWS(int client, int args) {
-    if (g_AllowStatsOtherCommandCvar.IntValue == 0) {
+    /*if (g_AllowStatsOtherCommandCvar.IntValue == 0) {
         return Plugin_Handled;
-    }
+    }*/
 
     char arg1[32];
     int target;
@@ -372,7 +347,7 @@ public Action Command_RWS(int client, int args) {
         if (IsOnDb(target)) {
             SegfaultRanks_Message(
                 client, "%N has a RWS of %.1f with %d rounds played", target,
-                userData[target].RWS, userData[target].ROUNDS_TOTAL);
+                userData[target].rws, userData[target].rounds_total);
         } else {
             SegfaultRanks_Message(
                 client, "%N does not currently have stats stored", target);

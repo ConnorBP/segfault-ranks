@@ -43,7 +43,7 @@ public int Native_Message(Handle plugin, int numParams) {
   FormatNativeString(0, 2, 3, sizeof(buffer), bytesWritten, buffer);
 
   char prefix[64];
-  g_MessagePrefixCvar.GetString(prefix, sizeof(prefix));
+  cvarMessagePrefix.GetString(prefix, sizeof(prefix));
 
   char finalMsg[1024];
   if (StrEqual(prefix, ""))
@@ -62,7 +62,7 @@ public int Native_Message(Handle plugin, int numParams) {
 
 public int Native_MessageToAll(Handle plugin, int numParams) {
   char prefix[64];
-  g_MessagePrefixCvar.GetString(prefix, sizeof(prefix));
+  cvarMessagePrefix.GetString(prefix, sizeof(prefix));
   char buffer[1024];
   int bytesWritten = 0;
 

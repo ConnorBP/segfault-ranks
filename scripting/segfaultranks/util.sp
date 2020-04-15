@@ -17,7 +17,7 @@ ArrayList g_ChatAliasesCommands;
 ArrayList g_ChatAliasesModes;
 
 
-stock void Colorize(char[] msg, int size, bool stripColor = false) {
+void Colorize(char[] msg, int size, bool stripColor = false) {
 	for (int i = 0; i < sizeof(_colorNames); i++) {
 		if (stripColor)
 			ReplaceString(msg, size, _colorNames[i], "\x01"); // replace with white
@@ -29,15 +29,15 @@ stock void Colorize(char[] msg, int size, bool stripColor = false) {
 /**
  * Returns if a client is valid.
  */
-stock bool IsValidClient(int client) {
+bool IsValidClient(int client) {
 	return client > 0 && client <= MaxClients && IsClientConnected(client) && IsClientInGame(client);
 }
 
-stock bool IsPlayer(int client) {
+bool IsPlayer(int client) {
 	return IsValidClient(client) && !IsFakeClient(client);
 }
 
-stock bool IsPossibleLeader(int client) {
+bool IsPossibleLeader(int client) {
 	return client > 0 && client <= MaxClients && IsClientConnected(client) && !IsFakeClient(client);
 }
 
@@ -56,7 +56,7 @@ int GetCurrentPlayers()
 /**
  * Returns the number of human clients on a team.
  */
-stock int GetNumHumansOnTeam(int team) {
+int GetNumHumansOnTeam(int team) {
 	int count = 0;
 	for (int i = 1; i <= MaxClients; i++) {
 		if (IsValidClient(i) && !IsFakeClient(i))
@@ -68,7 +68,7 @@ stock int GetNumHumansOnTeam(int team) {
 /**
  * Returns the number of clients that are actual players in the game.
  */
-stock int GetRealClientCount() {
+int GetRealClientCount() {
 	int clients = 0;
 	for (int i = 1; i <= MaxClients; i++) {
 		if (IsPlayer(i)) {
@@ -78,7 +78,7 @@ stock int GetRealClientCount() {
 	return clients;
 }
 
-stock int CountAlivePlayersOnTeam(int team) {
+int CountAlivePlayersOnTeam(int team) {
 	int count = 0;
 	for (int i = 1; i <= MaxClients; i++) {
 		if (IsPlayer(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
@@ -87,7 +87,7 @@ stock int CountAlivePlayersOnTeam(int team) {
 	return count;
 }
 
-stock bool OnActiveTeam(int client) {
+bool OnActiveTeam(int client) {
 	if (!IsPlayer(client))
 		return false;
 	
@@ -103,7 +103,7 @@ bool ShouldRank() {
     // the min player count (2 by default)
     // TODO: add check for if ranking is by round or by match either here or
     // somewhere else
-    return !CheckIfWarmup() && g_MinimumPlayers > GetCurrentPlayers();
+    return !CheckIfWarmup() && minimumPlayers > GetCurrentPlayers();
 }
 
 // returns true if it is currently the warmup period

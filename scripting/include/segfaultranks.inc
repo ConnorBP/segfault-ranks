@@ -25,7 +25,7 @@ enum struct UserData {
   int rounds_total;
   int round_points;
 
-  void Remove() {
+  void ClearData() {
     this.on_db = false;
 
     this.id = 0;
