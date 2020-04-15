@@ -47,7 +47,7 @@ bool SendNewRound(int client, bool did_win, int round_points, int team_points, i
     char url[128];
     Format(url, sizeof(url), "%s/%s", BASE_API_URL, NEW_ROUND);
 
-    Handle authRequest = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, url);
+    Handle authRequest = SteamWorks_CreateHTTPRequest(k_EHTTPMethodPOST, url);
     if (authRequest == INVALID_HANDLE) {
         LogError("Failed to create HTTP request using url: %s", url);
         return false;
@@ -168,7 +168,7 @@ public int SteamWorks_OnNewRoundSent(Handle request, bool failure, bool requestS
     }*/
     else {
         if (strlen(responseBody) > 0) {
-            LogError("Error message: %s", responseBody);
+            LogError("Status code: %i Error message: %s", statusCode, responseBody);
         }
     }
 

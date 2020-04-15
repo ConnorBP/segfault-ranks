@@ -17,7 +17,8 @@
 #include <SteamWorks>
 
 
-//#define AUTH_METHOD AuthId_Steam2
+#define AUTH_METHOD AuthId_Steam2
+#define AUTH_METHOD64 AuthId_SteamID64
 
 // Plugin Enabled State
 bool pluginEnabled = true; // TODO add a convar to disable this plugin
@@ -145,11 +146,32 @@ void RegisterForwards() {
 public void OnConfigsExecuted() {
     GetCvarValues();
     InitializeDatabaseConnection();
+
+    // if players have connected before configs load we have to make sure we load them here
+    ReloadAllPlayers();
 }
 
 public void OnClientPostAdminCheck(int client) {
     LogDebug("OnClientPostAdminCheck: %i", client);
-    ReloadClient(client);
+    //ReloadClient(client);
+}
+
+public void OnClientAuthorized(int client, const char[] auth) {
+    LogDebug("OnClientAuthorized: %i auth: %s", client, auth);
+    if(client > 0 && client <= MaxClients && !strcmp("BOT", auth, false) && !strcmp("GOTV", auth, false)) {
+        userData[client].ClearData();
+        strcopy(userData[client].steamid2, 64, auth);
+        LogDebug("Client %i copied auth: %s", client, userData[client].steamid2);
+        ReloadClient(client);
+    }
+}
+
+void ReloadAllPlayers() {
+    for (int i = 1; i <= MaxClients; i++) {
+        if(IsPlayer(i)) {
+            ReloadClient(i);
+        }
+    }
 }
 
 void ReloadClient(int client) {
@@ -163,7 +185,7 @@ void ReloadClient(int client) {
 
 public void LoadPlayer(int client) {
     // Clear any previous users data stored in this cache slot
-    userData[client].ClearData();
+    //userData[client].ClearData();
 
     char name[MAX_NAME_LENGTH];
     GetClientName(client, name, sizeof(name));
@@ -171,7 +193,7 @@ public void LoadPlayer(int client) {
     strcopy(userData[client].display_name, MAX_NAME_LENGTH, name);
 
     //char auth[32];
-    GetClientAuthId(client, AuthId_Steam2, userData[client].steamid2, 64);
+    GetClientAuthId(client, AUTH_METHOD, userData[client].steamid2, 64);
     //strcopy(userData[client].steamid2, sizeof(userData[client].steamid2), auth);
 
     LogDebug("Added client %i auth id %s", client, userData[client].steamid2);
