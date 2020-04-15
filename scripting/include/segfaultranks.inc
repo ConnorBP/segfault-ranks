@@ -61,7 +61,7 @@ enum struct UserData {
       return true;
     } else {
       //load using steamid lookup/init method
-      if(!strcmp(this.steamid2, "") && strcmp("BOT", this.steamid2, false) != 0 && strcmp("GOTV", this.steamid2, false) != 0) {
+      if(strcmp(this.steamid2, "", false) != 0 && strcmp("BOT", this.steamid2, false) != 0 && strcmp("GOTV", this.steamid2, false) != 0) {
         this.on_db = true;
         return true;
       } else {
