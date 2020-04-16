@@ -206,7 +206,8 @@ public void LoadPlayer(int client) {
     //TODO: CACHE PLAYERS DATABASE INDEX IN A CLIENTPREFS COOKIE SO WE CAN JUST LOAD THEM USING THE INDEX API AND AVOID RUNNING THE STEAMID LOOKUP EVERY TIME
 
     // Now that we have loaded the clients steam auth and username, it is time to initialize them on the database or load them
-    userData[client].LoadData();
+    //userData[client].LoadData();
+    InitUser(client);
 }
 
 public void OnPluginEnd() {

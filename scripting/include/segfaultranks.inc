@@ -57,15 +57,15 @@ enum struct UserData {
       //load using database id method instead
 
       //after loading and success return true
-      this.on_db = true;
+      //this.on_db = true;
       return true;
     } else {
       //load using steamid lookup/init method
       if(strcmp(this.steamid2, "", false) != 0 && strcmp("BOT", this.steamid2, false) != 0 && strcmp("GOTV", this.steamid2, false) != 0) {
-        this.on_db = true;
+        //this.on_db = true;
         return true;
       } else {
-        this.on_db = false;
+        //this.on_db = false;
         return false;
       }
     }
