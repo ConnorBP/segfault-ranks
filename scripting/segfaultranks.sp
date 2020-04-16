@@ -304,6 +304,7 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
  * Here we apply magic updates to a player's rws based on the previous round.
  */
 static void RoundUpdate(int client, bool winner) {
+    if(!OnActiveTeam(client)){return;}//avoid submitting rounds for spectators
 // todo make minimumEnemies a cvar
 // todo make minimumTeam
 #define minimumEnemies 1

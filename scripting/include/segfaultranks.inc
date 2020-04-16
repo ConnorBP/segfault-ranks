@@ -65,6 +65,7 @@ enum struct UserData {
         this.on_db = true;
         return true;
       } else {
+        this.on_db = false;
         return false;
       }
     }
