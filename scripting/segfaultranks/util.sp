@@ -106,7 +106,7 @@ stock bool ShouldRank() {
     // the min player count (2 by default)
     // TODO: add check for if ranking is by round or by match either here or
     // somewhere else
-    return !CheckIfWarmup() && minimumPlayers > GetCurrentPlayers();
+    return !CheckIfWarmup() && minimumPlayers <= GetCurrentPlayers();
 }
 
 // returns true if it is currently the warmup period
