@@ -1,7 +1,3 @@
-
-#define ALIAS_LENGTH 64
-#define COMMAND_LENGTH 64
-
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) {
     g_ChatAliases = new ArrayList(ALIAS_LENGTH);
     g_ChatAliasesCommands = new ArrayList(COMMAND_LENGTH);
@@ -10,6 +6,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
     CreateNative("SegfaultRanks_Message", Native_Message);
     CreateNative("SegfaultRanks_MessageToAll", Native_MessageToAll);
     CreateNative("SegfaultRanks_AddChatAlias", Native_AddChatAlias);
+    return APLRes_Success;
 }
 
 

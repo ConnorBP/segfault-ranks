@@ -2,6 +2,8 @@
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
+#define ALIAS_LENGTH 64
+#define COMMAND_LENGTH 64
 
 #include "include/segfaultranks.inc"
 
@@ -36,6 +38,10 @@ int minimumPlayers = 2;
 //int minimumRounds = 0;
 public char baseApiUrl[64] = "http://localhost:1337/v1";
 
+
+// Forwards
+Handle g_hOnHelpCommand = INVALID_HANDLE;
+
 // Convars
 ConVar cvarMessagePrefix;
 ConVar cvarBaseApiUrl;
@@ -46,6 +52,7 @@ ConVar cvarBaseApiUrl;
 
 
 #include "segfaultranks/util.sp"
+#include "segfaultranks/chat_alias.sp"
 #include "segfaultranks/server_functions.sp"
 // natives for use by external plugins
 #include "segfaultranks/natives.sp"
@@ -145,7 +152,7 @@ void GetCvarValues() {
 }
 
 void RegisterForwards() {
-  // None
+    g_hOnHelpCommand = CreateGlobalForward("SegfaultRanks_OnHelpCommand", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef);
 }
 
 public void OnConfigsExecuted() {
@@ -163,7 +170,7 @@ public void OnClientPostAdminCheck(int client) {
 
 public void OnClientAuthorized(int client, const char[] auth) {
     LogDebug("OnClientAuthorized: %i auth: %s", client, auth);
-    if(client > 0 && client <= MaxClients && strcmp("BOT", auth, false) != 0 && strcmp("GOTV", auth, false) != 0) {
+    if(client > 0 && client <= MaxClients && !StrEqual("BOT", auth, false) && !StrEqual("GOTV", auth, false)) {
         userData[client].ClearData();
         strcopy(userData[client].steamid2, 64, auth);
         LogDebug("Client %i copied auth: %s", client, userData[client].steamid2);
@@ -214,6 +221,97 @@ public void OnPluginEnd() {
     if (!pluginEnabled) {
         return;
     }
+}
+
+// Chat alias listener
+public void OnClientSayCommand_Post(int client, const char[] command, const char[] sArgs) {
+    if (!IsPlayer(client))
+        return;
+    
+    // splits to find the first word to do a chat alias command check
+    char chatCommand[COMMAND_LENGTH];
+    char chatArgs[255];
+    int index = SplitString(sArgs, " ", chatCommand, sizeof(chatCommand));
+    
+    if (index == -1) {
+        strcopy(chatCommand, sizeof(chatCommand), sArgs);
+    } else if (index < strlen(sArgs)) {
+        strcopy(chatArgs, sizeof(chatArgs), sArgs[index]);
+    }
+    
+    if (chatCommand[0]) {
+        char alias[ALIAS_LENGTH];
+        char cmd[COMMAND_LENGTH];
+        for (int i = 0; i < GetArraySize(g_ChatAliases); i++) {
+            GetArrayString(g_ChatAliases, i, alias, sizeof(alias));
+            GetArrayString(g_ChatAliasesCommands, i, cmd, sizeof(cmd));
+            if (CheckChatAlias(alias, cmd, chatCommand, chatArgs, client, g_ChatAliasesModes.Get(i))) {
+                break;
+            }
+        }
+    }
+    
+    if (StrEqual(sArgs[0], ".help", false)) {
+        const int msgSize = 128;
+        ArrayList msgs = new ArrayList(msgSize);
+        
+        msgs.PushString("{PURPLE}.stats {NORMAL}displays your stats");
+        msgs.PushString("{PURPLE}.top {NORMAL}shows the leaderboard");
+        msgs.PushString("{PURPLE}.rank {NORMAL}see your current ranking");
+        msgs.PushString("{PURPLE}.segfault {NORMAL}cause a segmentation violation");
+        
+        bool block = false;
+        Call_StartForward(g_hOnHelpCommand);
+        Call_PushCell(client);
+        Call_PushCell(msgs);
+        Call_PushCell(msgSize);
+        Call_PushCellRef(block);
+        Call_Finish();
+        
+        if (!block) {
+            char msg[msgSize];
+            for (int i = 0; i < msgs.Length; i++) {
+                msgs.GetString(i, msg, sizeof(msg));
+                SegfaultRanks_Message(client, msg);
+            }
+        }
+        
+        delete msgs;
+    }
+    
+    // Allow using .map as a map-vote revote alias and as a
+    // shortcut to the mapchange menu (if avaliable).
+    // if (StrEqual(sArgs, ".map") || StrEqual(sArgs, "!revote")) {
+    // 	if (IsVoteInProgress() && IsClientInVotePool(client)) {
+    // 		RedrawClientVoteMenu(client);
+    // 	} else if (g_IRVActive) {
+    // 		ResetClientVote(client);
+    // 		ShowInstantRunoffMapVote(client, 0);
+    // 	} else if (PugSetup_IsPugAdmin(client) && g_DisplayMapChange) {
+    // 		PugSetup_GiveMapChangeMenu(client);
+    // 	}
+    // }
+}
+
+static bool CheckChatAlias(const char[] alias, const char[] command, const char[] chatCommand, 
+    const char[] chatArgs, int client, ChatAliasMode mode) {
+    if (StrEqual(chatCommand, alias, false)) {
+        if (mode == ChatAlias_NoWarmup && CheckIfWarmup()) {
+            return false;
+        }
+        
+        // Get the original cmd reply source so it can be restored after the fake client command.
+        // This means and ReplyToCommand will go into the chat area, rather than console, since
+        // *chat* aliases are for *chat* commands.
+        ReplySource replySource = GetCmdReplySource();
+        SetCmdReplySource(SM_REPLY_TO_CHAT);
+        char fakeCommand[256];
+        Format(fakeCommand, sizeof(fakeCommand), "%s %s", command, chatArgs);
+        FakeClientCommand(client, fakeCommand);
+        SetCmdReplySource(replySource);
+        return true;
+    }
+    return false;
 }
 
 // Points Events
@@ -410,8 +508,6 @@ public Action Command_RWS(int client, int args) {
     return Plugin_Handled;
 }
 
-public
-Action Command_Rank(int client, int args) { return Plugin_Handled; }
+public Action Command_Rank(int client, int args) { return Plugin_Handled; }
 
-public
-Action Command_Leaderboard(int client, int args) { return Plugin_Handled; }
+public Action Command_Leaderboard(int client, int args) { return Plugin_Handled; }

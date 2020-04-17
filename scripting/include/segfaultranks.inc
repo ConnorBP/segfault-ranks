@@ -61,7 +61,7 @@ enum struct UserData {
       return true;
     } else {
       //load using steamid lookup/init method
-      if(strcmp(this.steamid2, "", false) != 0 && strcmp("BOT", this.steamid2, false) != 0 && strcmp("GOTV", this.steamid2, false) != 0) {
+      if(!StrEqual(this.steamid2, "", false) && !StrEqual("BOT", this.steamid2, false) && !StrEqual("GOTV", this.steamid2, false)) {
         //this.on_db = true;
         return true;
       } else {
@@ -90,7 +90,17 @@ native void SegfaultRanks_MessageToAll(const char[] format, any:...);
 
 
 // Global Forwards
-// NONE
+
+/**
+ * Called when a client issues a .help command in chat.
+ *
+ * @param client The client issuing the command
+ * @param replyMessages An ArrayList of Strings to reply with (in chat)
+ * @param maxMessageSize The max length of a string in the replyMessages list
+ * @param block Whether to block the reply message (set to true to have no reply)
+ */
+forward void SegfaultRanks_OnHelpCommand(int client, ArrayList replyMessages, int maxMessageSize,
+                                    bool& block);
 
 public SharedPlugin __pl_segfaultranks = {
     name = "segfaultranks", file = "segfaultranks.smx",
