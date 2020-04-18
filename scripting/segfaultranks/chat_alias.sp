@@ -1,5 +1,15 @@
 // Alias Commands
 
+// Permission checking values.
+enum Permission {
+  Permission_All,       // anyone can use the command
+  Permission_Captains,  // only captains (and higher) can use the command (note: reverts to
+                        // Permission_All when not using captains)
+  Permission_Leader,    // only the pug leader (and higher) can use the command
+  Permission_Admin,     // only pug admins can use the command
+  Permission_None,      // this command is disabled
+};
+
 public void LoadTranslatedAliases() {
     // For each of these sm_x commands, we need the
     // translation phrase sm_x_alias to be present.
@@ -22,10 +32,7 @@ public void LoadExtraAliases() {
     // Any extra chat aliases we want
     SegfaultRanks_AddChatAlias(".segfault", "sm_rank", ChatAlias_NoWarmup);
     SegfaultRanks_AddChatAlias(".stats", "sm_rws", ChatAlias_NoWarmup);
-    SegfaultRanks_AddChatAlias(".rws", "sm_rws", ChatAlias_NoWarmup);
-    SegfaultRanks_AddChatAlias(".rank", "sm_rank", ChatAlias_NoWarmup);
-    SegfaultRanks_AddChatAlias(".top", "sm_top", ChatAlias_NoWarmup);
-    SegfaultRanks_AddChatAlias(".leaderboard", "sm_top", ChatAlias_NoWarmup);
+    SegfaultRanks_AddChatAlias(".top", "sm_leaderboard", ChatAlias_Always);
 }
 
 /*static void AddTranslatedAlias(const char[] command, ChatAliasMode mode = ChatAlias_Always) {

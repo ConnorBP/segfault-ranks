@@ -22,6 +22,10 @@
 #define AUTH_METHOD AuthId_Steam2
 #define AUTH_METHOD64 AuthId_SteamID64
 
+/** Permissions **/
+//StringMap g_PermissionsMap;
+ArrayList g_Commands; // just a list of all known pugsetup commands
+
 // Plugin Enabled State
 bool pluginEnabled = true; // TODO add a convar to disable this plugin
 
@@ -78,6 +82,7 @@ public void OnPluginStart() {
 
     HookEvents();
     RegisterCommands();
+    LoadExtraAliases();
     RegisterConvars();
     RegisterForwards();
 }
@@ -118,16 +123,25 @@ void HookEvents() {
 }
 
 void RegisterCommands() {
+    g_Commands = new ArrayList(COMMAND_LENGTH);
     RegAdminCmd("sm_dumprws", Command_DumpRWS, ADMFLAG_KICK,"Dumps all player historical rws and rounds played");
     RegAdminCmd("sm_testsend", Command_TestSend, ADMFLAG_KICK,"Sends a fake test-round to the database for testing purposes. Will be removed before release.");
-    RegConsoleCmd("sm_rws", Command_RWS, "Show player's historical rws");
-    RegConsoleCmd("sm_rank", Command_Rank, "Show player's ELO Rank");
-    RegConsoleCmd("sm_top", Command_Leaderboard,"Show player's leaderboard position");
+    AddUserCommand("rws", Command_RWS, "Show player's historical rws");
+    AddUserCommand("rank", Command_Rank, "Show player's ELO Rank");
+    AddUserCommand("leaderboard", Command_Leaderboard,"Show player's leaderboard position");
+}
 
-    // SegfaultRanks_AddChatAlias(".rws", "sm_rws");
-    // SegfaultRanks_AddChatAlias(".stats", "sm_rws");
-    // SegfaultRanks_AddChatAlias(".rank", "sm_rank");
-    // SegfaultRanks_AddChatAlias(".top", "sm_top");
+static void AddUserCommand(const char[] command, ConCmd callback, const char[] description, 
+	/*Permission p = Permission_All,*/ ChatAliasMode mode = ChatAlias_Always) {
+	char smCommandBuffer[64];
+	Format(smCommandBuffer, sizeof(smCommandBuffer), "sm_%s", command);
+	g_Commands.PushString(smCommandBuffer);
+	RegConsoleCmd(smCommandBuffer, callback, description);
+	//SegfaultRanks_SetPermissions(smCommandBuffer, p);//for now all of the "UserCommands" are unpermissioned and admin commands have no place there
+	
+	char dotCommandBuffer[64];
+	Format(dotCommandBuffer, sizeof(dotCommandBuffer), ".%s", command);
+	SegfaultRanks_AddChatAlias(dotCommandBuffer, smCommandBuffer, mode);
 }
 
 void RegisterConvars() {
