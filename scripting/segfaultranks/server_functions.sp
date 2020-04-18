@@ -114,97 +114,43 @@ bool SendNewRound(int client, bool did_win, int round_points, int team_points, i
 
 
 // Callback functions
-/*
-public int SteamWorks_OnAuthRecieved(Handle request, bool failure, bool requestSuccessful,
-                                    EHTTPStatusCode statusCode, int serial, ReplySource replySource) {
+
+
+// SteamWorksHTTPRequestCompleted 
+// void (Handle hRequest, bool bFailure, bool bRequestSuccessful, EHTTPStatusCode eStatusCode, any data1, any data2)
+public void SteamWorks_OnUserReceived(Handle request, bool failure, bool requestSuccessful, EHTTPStatusCode statusCode, int serial) {
     if (failure || !requestSuccessful) {
         LogError("API request failed, HTTP status code = %d", statusCode);
-        CheckMapChange();
         return;
     }
 
-    SteamWorks_WriteHTTPResponseBodyToFile(request, g_DataFile);
+    int size;
+    if(SteamWorks_GetHTTPResponseBodySize(request, size)) {
+        if(size>0) {
+            char[] responseBody = new char[size];
+            SteamWorks_GetHTTPResponseBodyData(request, responseBody, size);
 
-    if (statusCode == k_EHTTPStatusCode200OK) {
-        ReadMapFromDatafile();
-        PrintToServer("Got new MOTW: %s", g_CurrentMOTW);
-        if (serial != 0) {
-            int client = GetClientFromSerial(serial);
-            // Save original reply source to restore later.
-            ReplySource r = GetCmdReplySource();
-            SetCmdReplySource(replySource);
-            ReplyToCommand(client, "Got new MOTW: %s", g_CurrentMOTW);
-            SetCmdReplySource(r);
+            if (statusCode == k_EHTTPStatusCode200OK) {
+                if (serial != 0) {
+                    int client = GetClientFromSerial(serial);
+                    userData[client].on_db = true;
+                    PrintToServer("Client %i was successfully loaded in the database!", client);
+                    PrintToServer("Got response: %s", responseBody);//temporary
+                    //TODO: parse returned json and update local variables (such as round count)
+                }
+            } 
+            else {
+                LogError("Status code: %i Error message: %s", statusCode, responseBody);
+            }
+        } else {
+            LogError("The response body was empty while retreiving the user.");
         }
-    } else if (statusCode == k_EHTTPStatusCode400BadRequest) {
-        char errMsg[1024];
-        File f = OpenFile(g_DataFile, "r");
-        if (f != null) {
-            f.ReadLine(errMsg, sizeof(errMsg));
-            delete f;
-            LogError("Error message: %s", errMsg);
-        }
-        g_DefaultCvar.GetString(g_CurrentMOTW, sizeof(g_CurrentMOTW));
+    } else {
+        LogError("There was a problem trying to retreive the size of the response body.");
     }
-
 }
 
-public int SteamWorks_OnUserRecieved(Handle request, bool failure, bool requestSuccessful,EHTTPStatusCode statusCode, int serial) {
-    if (failure || !requestSuccessful) {
-        LogError("API request failed, HTTP status code = %d", statusCode);
-
-        return;
-    }
-
-    char responseBody[1024];
-    SteamWorks_GetHTTPResponseBodyData(request, responseBody, sizeof(responseBody[]));
-
-    if (statusCode == k_EHTTPStatusCode200OK) {
-        if (serial != 0) {
-            int client = GetClientFromSerial(serial);
-            PrintToServer("Got new stats for client: %i serial: %i", client, serial);
-            // parse data from json and save if it is all valid
-            JSON_Object obj = json_decode(responseBody);
-            float rws = obj.GetFloat("rws");
-        }
-    } else if (statusCode == k_EHTTPStatusCode400BadRequest || statusCode == k_EHTTPStatusCode404NotFound) {
-        if (responseBody.length() > 0) {
-            LogError("Error message: %s", responseBody);
-        }
-    }
-}*/
-
-public int SteamWorks_OnUserReceived(Handle request, bool failure, bool requestSuccessful, EHTTPStatusCode statusCode, int serial) {
-    if (failure || !requestSuccessful) {
-        LogError("API request failed, HTTP status code = %d", statusCode);
-        return;
-    }
-
-    char responseBody[1024];
-    SteamWorks_GetHTTPResponseBodyData(request, responseBody, sizeof(responseBody));
-
-    if (statusCode == k_EHTTPStatusCode200OK) {
-        if (serial != 0) {
-            int client = GetClientFromSerial(serial);
-            userData[client].on_db = true;
-            PrintToServer("Client %i was successfully loaded in the database!", client);
-            PrintToServer("Got response: %s", responseBody);//temporary
-            //TODO: parse returned json and update local variables (such as round count)
-        }
-    } /*else if (statusCode == k_EHTTPStatusCode400BadRequest || statusCode == k_EHTTPStatusCode404NotFound) {
-        if (responseBody.length() > 0) {
-            LogError("Error message: %s", responseBody);
-        }
-    }*/
-    else {
-        if (strlen(responseBody) > 0) {
-            LogError("Status code: %i Error message: %s", statusCode, responseBody);
-        }
-    }
-
-}
-
-public int SteamWorks_OnNewRoundSent(Handle request, bool failure, bool requestSuccessful, EHTTPStatusCode statusCode, int serial) {
+public void SteamWorks_OnNewRoundSent(Handle request, bool failure, bool requestSuccessful, EHTTPStatusCode statusCode, int serial) {
     if (failure || !requestSuccessful) {
         LogError("API request failed, HTTP status code = %d", statusCode);
         return;
