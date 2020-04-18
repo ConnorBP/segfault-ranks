@@ -156,25 +156,28 @@ public void SteamWorks_OnNewRoundSent(Handle request, bool failure, bool request
         return;
     }
 
-    char responseBody[1024];
-    SteamWorks_GetHTTPResponseBodyData(request, responseBody, sizeof(responseBody));
+    int size;
+    if(SteamWorks_GetHTTPResponseBodySize(request, size)) {
+        if(size>0) {
+            char[] responseBody = new char[size];
+            SteamWorks_GetHTTPResponseBodyData(request, responseBody, size);
 
-    if (statusCode == k_EHTTPStatusCode200OK) {
-        if (serial != 0) {
-            int client = GetClientFromSerial(serial);
-            PrintToServer("New round successfully sent for client: %i", client);
-            PrintToServer("Got response: %s", responseBody);//temporary
-            //TODO: parse returned json and update local variables (such as round count)
+            if (statusCode == k_EHTTPStatusCode200OK) {
+                if (serial != 0) {
+                    int client = GetClientFromSerial(serial);
+                    PrintToServer("New round successfully sent for client: %i", client);
+                    PrintToServer("Got response: %s", responseBody);//temporary
+                    //TODO: parse returned json and update local variables (such as round count)
+                }
+            } 
+            else {
+                LogError("Bad Status code: %i Error message: %s", statusCode, responseBody);
+            }
+        } else {
+            LogError("The response body was empty while sending a new round.");
         }
-    } /*else if (statusCode == k_EHTTPStatusCode400BadRequest || statusCode == k_EHTTPStatusCode404NotFound) {
-        if (responseBody.length() > 0) {
-            LogError("Error message: %s", responseBody);
-        }
-    }*/
-    else {
-        if (strlen(responseBody) > 0) {
-            LogError("Status code: %i Error message: %s", statusCode, responseBody);
-        }
+    } else {
+        LogError("There was a problem trying to retreive the size of the response body in NewRoundSent callback.");
     }
 
 }
