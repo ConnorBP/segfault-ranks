@@ -1,3 +1,6 @@
+#pragma semicolon 1 // Force strict semicolon mode.
+
+
 #define PLUGIN_VERSION "0.1.0-dev"
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
