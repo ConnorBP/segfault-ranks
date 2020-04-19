@@ -14,9 +14,10 @@ db struct:
     pub rounds_total: i32,
 */
 enum struct UserData {
-  bool on_db;//have they been initialized/retreived from db yet?
 
+  bool on_db;//have they been initialized/retreived from db yet?
   int id;//database id index
+
   char display_name[MAX_NAME_LENGTH];
   char steamid2[64];
   char discord[18];
@@ -51,8 +52,52 @@ enum struct UserData {
     this.round_points = 0;
   }
 
+  // compares stored steam to double check that the current client id matches the steam of said client id
+  // if a user disconnects before a web callback is received we don't want the callback to accidentaly overwrite another user
+  bool CheckSteamId(char[] steamId) {
+    return StrEqual(steamId, this.steamid2);
+  }
+
+  bool ParseFromJson(char[] jsonBody, bool initClient = false) {
+    JSON_Object obj = json_decode(jsonBody);
+    char jsonSteam[64];
+    obj.GetString("steamid2", jsonSteam, sizeof(jsonSteam));
+    //if we are not initializing the client we need to double check
+    // that the existing steamid is the same as the one this response is for
+    if(!initClient && !this.CheckSteamId(jsonSteam)) {//we could probably compare databaseId instead of steam since it is easier to not mess up comparing integers
+      // it is not the first-time initialization of the client
+      // and the steamid check returned as not a match
+      LogError("Warning! There was an attempt to overwrite a user %s with a non matching user %s", this.steamid2, jsonSteam);
+      return false;
+    }
+    // now we know we are safe and it is the same user
+    // start updating the local variables from the returned json
+
+    //first decode them
+
+    if(initClient) {
+      // only apply dbid on the initialize
+      int _id = obj.GetInt("id");
+      this.id = _id;
+    }
+
+    //int _id = obj.GetInt("id");
+    //char _discord[18];
+    //float _elo = obj.GetFloat("elo");
+    float _rws = obj.GetFloat("rws");
+    int _rounds_total = obj.GetInt("rounds_total");
+
+    // then apply the values to our local cache
+    this.rws = _rws;
+    this.rounds_total = _rounds_total;
+
+    // Done. Set on_db and Return success
+    this.on_db = true;
+    return true;
+  }
+
   // if steam auth and name are set, then this can be called to load a user from the database
-  bool LoadData() {
+  /*bool LoadData() {
     if (this.id != 0) {
       //load using database id method instead
 
@@ -69,7 +114,7 @@ enum struct UserData {
         return false;
       }
     }
-  }
+  }*/
 }
 
 enum ChatAliasMode {

@@ -5,18 +5,17 @@
 #define ALIAS_LENGTH 64
 #define COMMAND_LENGTH 64
 
-#include "include/segfaultranks.inc"
-
 #include <clientprefs>
 #include <cstrike>
 #include <sdktools>
 #include <sourcemod>
-
 #include <logdebug>
 
 // for http requests
 #include <json>
 #include <SteamWorks>
+
+#include "include/segfaultranks.inc"
 
 
 #define AUTH_METHOD AuthId_Steam2

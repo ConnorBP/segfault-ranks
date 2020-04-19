@@ -4,6 +4,10 @@
 #define NEW_ROUND "newround"
 #define USER_INIT "userinit"
 
+// https://github.com/clugg/sm-json
+// this is where our json encoding results will go if we use decide to use the encoding features
+//char jsonOutputCache[1024];
+
 //Data required for submitting new round:
 /*
 pub struct RoundData {
@@ -133,14 +137,19 @@ public void SteamWorks_OnUserReceived(Handle request, bool failure, bool request
             if (statusCode == k_EHTTPStatusCode200OK) {
                 if (serial != 0) {
                     int client = GetClientFromSerial(serial);
-                    userData[client].on_db = true;
                     PrintToServer("Client %i was successfully loaded in the database!", client);
                     PrintToServer("Got response: %s", responseBody);//temporary
-                    //TODO: parse returned json and update local variables (such as round count)
+                    // parse the received data into the appropriate client storage
+                    if(!userData[client].ParseFromJson(responseBody, true)) {
+                        LogError("Failed to parse user init json from response body: %s", responseBody);
+                    }
+                    // set on_db to true here even if setting the local variables fails for now just in case an initially empty stat breaks the json decoder.
+                    // users don't get rounds submitted until this is set to confirm they are initialized on the database
+                    //userData[client].on_db = true;//disabled, gets set inside of ParseFromJson
                 }
             } 
             else {
-                LogError("Status code: %i Error message: %s", statusCode, responseBody);
+                LogError("Bad Status code: %i Response: %s", statusCode, responseBody);
             }
         } else {
             LogError("The response body was empty while retreiving the user.");
@@ -167,7 +176,10 @@ public void SteamWorks_OnNewRoundSent(Handle request, bool failure, bool request
                     int client = GetClientFromSerial(serial);
                     PrintToServer("New round successfully sent for client: %i", client);
                     PrintToServer("Got response: %s", responseBody);//temporary
-                    //TODO: parse returned json and update local variables (such as round count)
+                    // update stats from returned values with init mode disabled since we already initiated the user
+                    if(!userData[client].ParseFromJson(responseBody, false)) {
+                        LogError("Failed to parse user init json from response body: %s", responseBody);
+                    }
                 }
             } 
             else {
