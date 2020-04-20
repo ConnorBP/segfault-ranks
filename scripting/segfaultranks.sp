@@ -92,6 +92,8 @@ public void OnPluginStart() {
     LoadExtraAliases();
     RegisterConvars();
     RegisterForwards();
+    // reloads client hooks for anyone already connected before this finished loading or for when the plugin reloads
+    ReloadAllPlayerHooks();
 }
 
 void InitializeDatabaseConnection() {
@@ -186,6 +188,10 @@ public void OnConfigsExecuted() {
 
 public void OnClientPostAdminCheck(int client) {
     LogDebug("OnClientPostAdminCheck: %i", client);
+    HookClient(client);
+}
+
+HookClient(int client) {
     if (GetFeatureStatus(FeatureType_Capability, "SDKHook_DmgCustomInOTD") == FeatureStatus_Available) {
         if(IsPlayer(client)) {
             SDKHook(client, SDKHook_OnTakeDamageAlive, OnTakeDamageAlive);
@@ -202,6 +208,14 @@ public void OnClientAuthorized(int client, const char[] auth) {
         strcopy(userData[client].steamid2, 64, auth);
         LogDebug("Client %i copied auth: %s", client, userData[client].steamid2);
         ReloadClient(client);
+    }
+}
+
+ReloadAllPlayerHooks() {
+    for (int i = 1; i <= MaxClients; i++) {
+        if(IsPlayer(i)) {
+            HookClient(i);
+        }
     }
 }
 
