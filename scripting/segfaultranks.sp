@@ -39,7 +39,11 @@ public UserData userData[MAXPLAYERS + 1];
 
 // convar local variables
 // minimum players required for ranks to calculate
-int minimumPlayers = 2;
+// must be minimum 4 for now (Can't calculate a percent for a team when the percent is always 100 with one person on a team)
+// this can be changed if we come up with some new algorithim that still rewards solo players
+// one option is having a "minimum required contribution score" to compare against to affect the score
+// another option is to use the entire servers players as an average instead of per-team or even use server average for effectiveness value like above
+int minimumPlayers = 4;
 // minimum rounds played required before user is shown on leaderboard
 //int minimumRounds = 0;
 public char baseApiUrl[64] = "http://localhost:1337/v1";
