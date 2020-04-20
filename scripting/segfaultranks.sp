@@ -462,7 +462,7 @@ static void RoundUpdate(int client, bool winner) {
     int teamPlayers = 0;
     int sum = 0;
     for (int i = 1; i <= MaxClients; i++) {
-        if (IsPlayer(i)) {
+        if (OnActiveTeam(i)) {
             totalPlayers++;
             if (GetClientTeam(i) == GetClientTeam(client)) {
                 sum += userData[i].round_points;

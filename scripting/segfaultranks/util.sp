@@ -41,12 +41,24 @@ stock bool IsPossibleLeader(int client) {
 	return client > 0 && client <= MaxClients && IsClientConnected(client) && !IsFakeClient(client);
 }
 
-
-stock int GetCurrentPlayers() 
+// returns number of players on the server (includes spectators)
+stock int GetTotalPlayers() 
 {
 	int count;
 	for (int i = 1; i <= MaxClients; i++) {
 		if (IsPlayer(i)) {
+			count++;
+		}
+	}
+	return count;
+}
+
+// returns number of players on the server in an active team
+stock int GetActivePlayers() 
+{
+	int count;
+	for (int i = 1; i <= MaxClients; i++) {
+		if (OnActiveTeam(i)) {
 			count++;
 		}
 	}
@@ -103,10 +115,10 @@ public bool IsOnDb(int client) {
 // Re-Usable checks for wether or not we should rank players right now
 stock bool ShouldRank() {
     // ranks should be calculated if it is not warmup, and there are at least
-    // the min player count (2 by default)
+    // the min player count (2 by default) on teams
     // TODO: add check for if ranking is by round or by match either here or
     // somewhere else
-    return !CheckIfWarmup() && minimumPlayers <= GetCurrentPlayers();
+    return !CheckIfWarmup() && minimumPlayers <= GetActivePlayers();
 }
 
 // returns true if it is currently the warmup period
