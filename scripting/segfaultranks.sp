@@ -1,7 +1,7 @@
 #pragma semicolon 1 // Force strict semicolon mode.
 
 
-#define PLUGIN_VERSION "0.1.0-dev"
+#define PLUGIN_VERSION "0.1.1-dev"
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
@@ -120,7 +120,7 @@ void HookEvents() {
     HookEvent("bomb_defused", Event_Bomb);
     HookEvent("bomb_planted", Event_Bomb);
     HookEvent("player_death", Event_PlayerDeath);
-    HookEvent("player_hurt", Event_DamageDealt);
+    HookEvent("player_hurt", Event_DamageDealt_Pre, EventHookMode_Pre);
     HookEvent("round_end", Event_RoundEnd);
 }
 
@@ -362,7 +362,41 @@ public Action Event_Bomb(Event event, const char[] name, bool dontBroadcast) {
     userData[client].round_points += 50;
 }
 
-public Action Event_DamageDealt(Event event, const char[] name, bool dontBroadcast) {
+// in theory if we pre_hook the event we can fetch the victims health before dmg_health is removed from it
+public Action Event_DamageDealt_Pre(Event event, const char[] name, bool dontBroadcast) {
+    if (CheckIfWarmup()) {
+        return Plugin_Continue;
+    }
+
+    int attacker = GetClientOfUserId(event.GetInt("attacker"));
+    int victim = GetClientOfUserId(event.GetInt("userid"));
+    bool validAttacker = IsValidClient(attacker);
+    bool validVictim = IsValidClient(victim);
+
+    if (validAttacker && validVictim && HelpfulAttack(attacker, victim)) {
+        // fetch clients health before damage is applied after this hook
+        int health = GetClientHealth(victim);
+        // fetch the events damage ammount
+        int damage = event.GetInt("dmg_health");
+
+
+        //temporary debug print to verify that this function does in fact do what we think it does
+        PrintToServer("Victim %i had %i health before taking %i damage.", victim, health, damage);
+
+
+        // if health before damage application is less than the total damage ammount
+        // then apply the users health ammount instead of the total ammount of damage
+        // this should solve awp-headshots over-rewarding as well as allow for proper ADR calculations later
+        if(health < damage) {
+            userData[attacker].round_points += health;
+        } else {
+            userData[attacker].round_points += damage;
+        }
+    }
+    return Plugin_Continue;
+}
+
+/*public Action Event_DamageDealt(Event event, const char[] name, bool dontBroadcast) {
     if (CheckIfWarmup()) {
         return;
     }
@@ -376,7 +410,7 @@ public Action Event_DamageDealt(Event event, const char[] name, bool dontBroadca
         int damage = event.GetInt("dmg_health");
         userData[attacker].round_points += damage;
     }
-}
+}*/
 
 public bool HelpfulAttack(int attacker, int victim) {
     if (!IsValidClient(attacker) || !IsValidClient(victim)) {
