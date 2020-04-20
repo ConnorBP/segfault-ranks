@@ -12,6 +12,7 @@
 #include <cstrike>
 #include <sdktools>
 #include <sourcemod>
+#include <sdkhooks>
 #include <logdebug>
 
 // for http requests
@@ -124,7 +125,7 @@ void HookEvents() {
     HookEvent("bomb_defused", Event_Bomb);
     HookEvent("bomb_planted", Event_Bomb);
     HookEvent("player_death", Event_PlayerDeath);
-    HookEvent("player_hurt", Event_DamageDealt_Pre, EventHookMode_Pre);
+    //HookEvent("player_hurt", Event_DamageDealt_Pre, EventHookMode_Pre);
     HookEvent("round_end", Event_RoundEnd);
 }
 
@@ -185,7 +186,13 @@ public void OnConfigsExecuted() {
 
 public void OnClientPostAdminCheck(int client) {
     LogDebug("OnClientPostAdminCheck: %i", client);
-    //ReloadClient(client);
+    if (GetFeatureStatus(FeatureType_Capability, "SDKHook_DmgCustomInOTD") == FeatureStatus_Available) {
+        if(IsPlayer(client)) {
+            SDKHook(client, SDKHook_OnTakeDamageAlive, OnTakeDamageAlive);
+        }
+    } else {
+        LogError("Feature SDKHook_DmgCustomInOTD was not availible. Failed to hook player damage event");
+    }
 }
 
 public void OnClientAuthorized(int client, const char[] auth) {
@@ -366,8 +373,58 @@ public Action Event_Bomb(Event event, const char[] name, bool dontBroadcast) {
     userData[client].round_points += 50;
 }
 
+// this is how we hook the user damage, but we are gonna use the admincheck event instead
+/*public OnClientPutInServer(client)
+{
+    if (GetFeatureStatus(FeatureType_Capability, "SDKHook_DmgCustomInOTD") !== FeatureStatus_Available) {
+        if(IsPlayer(client)) {
+            SDKHook(client, SDKHook_OnTakeDamageAlive, OnTakeDamage);
+        }
+    } else {
+        LogError("Feature SDKHook_DmgCustomInOTD was not availible. Failed to hook player damage event");
+    }
+}*/
+
+
 // in theory if we pre_hook the event we can fetch the victims health before dmg_health is removed from it
-public Action Event_DamageDealt_Pre(Event event, const char[] name, bool dontBroadcast) {
+// this does have more chance to fail if the plugin is restarted or if it loads after a player is in
+// TODO: DO SOME RESEARCH ON WHEN THE "Automatic Unhook" happens to see if we should hook inside the onPluginLoad players reload without it causing a double hook or something
+public Action OnTakeDamageAlive(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+{
+    if (CheckIfWarmup()) {
+        return Plugin_Continue;
+    }
+
+    //int attacker = GetClientOfUserId(event.GetInt("attacker"));
+    //int victim = GetClientOfUserId(event.GetInt("userid"));
+    bool validAttacker = IsValidClient(attacker);
+    bool validVictim = IsValidClient(victim);
+
+    //temporary debug print to verify that this function does in fact do what we think it does
+    // if(validVictim) {
+    //     PrintToServer("Victim %i had %i health before taking %f damage.", victim, GetClientHealth(victim), damage);
+    // }
+
+    if (validAttacker && validVictim && HelpfulAttack(attacker, victim)) {
+        // fetch clients health before damage is applied after this hook
+        int health = GetClientHealth(victim);
+        // fetch the events damage ammount
+        //int damage = event.GetInt("dmg_health");
+
+        // if health before damage application is less than the total damage ammount
+        // then apply the users health ammount instead of the total ammount of damage
+        // this should solve awp-headshots over-rewarding as well as allow for proper ADR calculations later
+        if(health < damage) {
+            userData[attacker].round_points += health;
+        } else {
+            userData[attacker].round_points += RoundFloat(damage);
+        }
+    }
+    return Plugin_Continue;
+}
+
+// even this hook still happens after damage is applied
+/*public Action Event_DamageDealt_Pre(Event event, const char[] name, bool dontBroadcast) {
     if (CheckIfWarmup()) {
         return Plugin_Continue;
     }
@@ -398,7 +455,7 @@ public Action Event_DamageDealt_Pre(Event event, const char[] name, bool dontBro
         }
     }
     return Plugin_Continue;
-}
+}*/
 
 /*public Action Event_DamageDealt(Event event, const char[] name, bool dontBroadcast) {
     if (CheckIfWarmup()) {
