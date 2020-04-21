@@ -56,8 +56,9 @@ Handle g_hOnHelpCommand = INVALID_HANDLE;
 // Convars
 ConVar cvarMessagePrefix;
 ConVar cvarBaseApiUrl;
+ConVar cvarRetakesMode;
 // wether or not users can .stats other players
-//ConVar cvarAllowStatsOtherCommand;
+ConVar cvarAllowStatsOtherCommand;
 //ConVar cvarMinimumPlayers;
 //ConVar cvarMinimumRounds;
 
@@ -159,10 +160,9 @@ void RegisterConvars() {
 
     cvarBaseApiUrl = CreateConVar("segfaultranks_api_url", "http://localhost:1337/v1", "Whether players can use the .rws or !rws command on other players");
 
-    //cvarAllowStatsOtherCommand = CreateConVar("sm_segfaultranks_allow_stats_other", "1", "Whether players can use the .rws or !rws command on other players");
-
+    cvarRetakesMode = CreateConVar("segfaultranks_retakesmode_enabled", "0", "determines wether or not bomb planting is rewarded");
+    cvarAllowStatsOtherCommand = CreateConVar("sm_segfaultranks_allow_stats_other", "1", "Whether players can use the .rws or !rws command on other players");
     //cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
-
     //cvarMinimumRounds = CreateConVar("sm_segfaultrank_minimal_rounds", "0","Minimal rounds played for rank to be displayed", _, true, 0.0);
 
     AutoExecConfig(true, "segfaultranks", "sourcemod");
@@ -379,7 +379,7 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 
 public Action Event_Bomb(Event event, const char[] name, bool dontBroadcast) {
     //  don't count warmup rounds towards RWS
-    if (CheckIfWarmup()) {
+    if (CheckIfWarmup() || GetConVarBool(cvarRetakesMode)) {
         return;
     }
 
@@ -424,6 +424,16 @@ public Action OnTakeDamageAlive(int victim, int& attacker, int& inflictor, float
         int health = GetClientHealth(victim);
         // fetch the events damage ammount
         //int damage = event.GetInt("dmg_health");
+
+        // reward more for killing armoured opponents (should reduce how much eco-fragging is rewarded)
+        int armor = GetClientArmor(victim);
+        // compress damage value into value between 0 and 1
+        float damageFactor = 1.0 - (1.0 / (damage + 1.0));
+        // set the reward as half of the victims armor times the damage factor
+        // (if a user does 100 damage they get half the victims armor as points)
+        float armorReward = (float(armor) * 0.5) * damageFactor;
+        // add the armor reward to clients points
+        userData[attacker].round_points += RoundFloat(armorReward);
 
         // if health before damage application is less than the total damage ammount
         // then apply the users health ammount instead of the total ammount of damage
@@ -555,13 +565,14 @@ public Action Command_DumpRWS(int client, int args) {
 }
 
 public Action Command_RWS(int client, int args) {
-    /*if (g_AllowStatsOtherCommandCvar.IntValue == 0) {
-        return Plugin_Handled;
-    }*/
-
+    
     char arg1[32];
     int target;
     if (args >= 1 && GetCmdArg(1, arg1, sizeof(arg1))) {
+        if (cvarAllowStatsOtherCommand.IntValue == 0) {
+            SegfaultRanks_Message(client, "Checking other player's stats is currently not allowed.");
+            return Plugin_Handled;
+        }
         target = FindTarget(client, arg1, true, false);
     } else {
         target = client;
@@ -577,7 +588,7 @@ public Action Command_RWS(int client, int args) {
                 client, "%N does not currently have stats stored", target);
         }
     } else {
-        SegfaultRanks_Message(client, "Usage: .stats [player]");
+        SegfaultRanks_Message(client, "Usage: .stats <optional player>");
     }
 
     return Plugin_Handled;
