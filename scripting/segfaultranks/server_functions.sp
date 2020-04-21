@@ -177,8 +177,15 @@ public void SteamWorks_OnNewRoundSent(Handle request, bool failure, bool request
                     PrintToServer("New round successfully sent for client: %i", client);
                     PrintToServer("Got response: %s", responseBody);//temporary
                     // update stats from returned values with init mode disabled since we already initiated the user
-                    if(!userData[client].ParseFromJson(responseBody, false)) {
-                        LogError("Failed to parse user init json from response body: %s", responseBody);
+                    if(IsPlayer(client)) {
+                        if(userData[client].ParseFromJson(responseBody, false)) {
+                            // apply rws to scoreboard
+                            CS_SetClientContributionScore(client, RoundFloat(userData[client].rws * 10.0));
+                        } else {
+                            LogError("Failed to parse user init json from response body: %s", responseBody);
+                        }
+                    } else {
+                        LogError("Client %i was not a valid player in newround callback. Response: %s", client, responseBody);
                     }
                 }
             } 

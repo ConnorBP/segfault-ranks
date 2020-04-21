@@ -437,56 +437,6 @@ public Action OnTakeDamageAlive(int victim, int& attacker, int& inflictor, float
     return Plugin_Continue;
 }
 
-// even this hook still happens after damage is applied
-/*public Action Event_DamageDealt_Pre(Event event, const char[] name, bool dontBroadcast) {
-    if (CheckIfWarmup()) {
-        return Plugin_Continue;
-    }
-
-    int attacker = GetClientOfUserId(event.GetInt("attacker"));
-    int victim = GetClientOfUserId(event.GetInt("userid"));
-    bool validAttacker = IsValidClient(attacker);
-    bool validVictim = IsValidClient(victim);
-
-    if (validAttacker && validVictim && HelpfulAttack(attacker, victim)) {
-        // fetch clients health before damage is applied after this hook
-        int health = GetClientHealth(victim);
-        // fetch the events damage ammount
-        int damage = event.GetInt("dmg_health");
-
-
-        //temporary debug print to verify that this function does in fact do what we think it does
-        PrintToServer("Victim %i had %i health before taking %i damage.", victim, health, damage);
-
-
-        // if health before damage application is less than the total damage ammount
-        // then apply the users health ammount instead of the total ammount of damage
-        // this should solve awp-headshots over-rewarding as well as allow for proper ADR calculations later
-        if(health < damage) {
-            userData[attacker].round_points += health;
-        } else {
-            userData[attacker].round_points += damage;
-        }
-    }
-    return Plugin_Continue;
-}*/
-
-/*public Action Event_DamageDealt(Event event, const char[] name, bool dontBroadcast) {
-    if (CheckIfWarmup()) {
-        return;
-    }
-
-    int attacker = GetClientOfUserId(event.GetInt("attacker"));
-    int victim = GetClientOfUserId(event.GetInt("userid"));
-    bool validAttacker = IsValidClient(attacker);
-    bool validVictim = IsValidClient(victim);
-
-    if (validAttacker && validVictim && HelpfulAttack(attacker, victim)) {
-        int damage = event.GetInt("dmg_health");
-        userData[attacker].round_points += damage;
-    }
-}*/
-
 public bool HelpfulAttack(int attacker, int victim) {
     if (!IsValidClient(attacker) || !IsValidClient(victim)) {
         return false;
