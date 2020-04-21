@@ -139,13 +139,19 @@ public void SteamWorks_OnUserReceived(Handle request, bool failure, bool request
                     int client = GetClientFromSerial(serial);
                     PrintToServer("Client %i was successfully loaded in the database!", client);
                     PrintToServer("Got response: %s", responseBody);//temporary
-                    // parse the received data into the appropriate client storage
-                    if(!userData[client].ParseFromJson(responseBody, true)) {
-                        LogError("Failed to parse user init json from response body: %s", responseBody);
+
+                    if(IsPlayer(client)) {
+                        // parse the received data into the appropriate client storage
+                        if(userData[client].ParseFromJson(responseBody, true)) {
+                            // apply rws to scoreboard
+                            SetClientRwsDisplay(client, userData[client].rws);
+                        } else {
+                            LogError("Failed to parse user init json from response body: %s", responseBody);
+                        }
+                        // set on_db to true here even if setting the local variables fails for now just in case an initially empty stat breaks the json decoder.
+                        // users don't get rounds submitted until this is set to confirm they are initialized on the database
+                        //userData[client].on_db = true;//disabled, gets set inside of ParseFromJson
                     }
-                    // set on_db to true here even if setting the local variables fails for now just in case an initially empty stat breaks the json decoder.
-                    // users don't get rounds submitted until this is set to confirm they are initialized on the database
-                    //userData[client].on_db = true;//disabled, gets set inside of ParseFromJson
                 }
             } 
             else {
@@ -180,7 +186,7 @@ public void SteamWorks_OnNewRoundSent(Handle request, bool failure, bool request
                     if(IsPlayer(client)) {
                         if(userData[client].ParseFromJson(responseBody, false)) {
                             // apply rws to scoreboard
-                            CS_SetClientContributionScore(client, RoundFloat(userData[client].rws * 10.0));
+                            SetClientRwsDisplay(client, userData[client].rws);
                         } else {
                             LogError("Failed to parse user init json from response body: %s", responseBody);
                         }

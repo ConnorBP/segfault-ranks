@@ -374,6 +374,8 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 
     if (validAttacker && validVictim && HelpfulAttack(attacker, victim)) {
         userData[attacker].round_points += 100;
+        // make sure rws stays displayed correctly
+        SetClientRwsDisplay(attacker, userData[attacker].rws);
     }
 }
 

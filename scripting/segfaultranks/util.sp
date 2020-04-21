@@ -26,6 +26,11 @@ stock void Colorize(char[] msg, int size, bool stripColor = false) {
 	}
 }
 
+// Replaces the clients scoreboard points with their rws * 10 to allow one decimal place
+stock void SetClientRwsDisplay(int client, float rws) {
+	CS_SetClientContributionScore(client, RoundFloat(rws * 10.0));
+}
+
 /**
  * Returns if a client is valid.
  */
