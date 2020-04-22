@@ -149,18 +149,20 @@ public void SteamWorks_OnUserReceived(Handle request, bool failure, bool request
                     PrintToServer("Client %i was successfully loaded in the database!", client);
                     PrintToServer("Got response: %s", responseBody);//temporary
 
-                    if(IsPlayer(client)) {
-                        // parse the received data into the appropriate client storage
-                        if(userData[client].ParseFromJson(responseBody, true)) {
-                            // apply rws to scoreboard
+                    // parse the received data into the appropriate client storage
+                    if(userData[client].ParseFromJson(responseBody, true)) {
+                        PrintToServer("Client %i data was successfully parsed into local cache!", client);
+                        // apply rws to scoreboard
+                        if(IsPlayer(client)) {
                             SetClientRwsDisplay(client, userData[client].rws);
-                        } else {
-                            LogError("Failed to parse user init json from response body: %s", responseBody);
                         }
-                        // set on_db to true here even if setting the local variables fails for now just in case an initially empty stat breaks the json decoder.
-                        // users don't get rounds submitted until this is set to confirm they are initialized on the database
-                        //userData[client].on_db = true;//disabled, gets set inside of ParseFromJson
+                    } else {
+                        LogError("Failed to parse user init json from response body: %s", responseBody);
                     }
+                    // set on_db to true here even if setting the local variables fails for now just in case an initially empty stat breaks the json decoder.
+                    // users don't get rounds submitted until this is set to confirm they are initialized on the database
+                    //userData[client].on_db = true;//disabled, gets set inside of ParseFromJson
+                
                 }
             } 
             else {
