@@ -438,6 +438,7 @@ public Action OnTakeDamageAlive(int victim, int& attacker, int& inflictor, float
         // fetch the events damage ammount
         //int damage = event.GetInt("dmg_health");
 
+        /* Currently this gives quite boosted stats (maybe)
         // reward more for killing armoured opponents (should reduce how much eco-fragging is rewarded)
         int armor = GetClientArmor(victim);
         // compress damage value into value between 0 and 1
@@ -447,6 +448,7 @@ public Action OnTakeDamageAlive(int victim, int& attacker, int& inflictor, float
         float armorReward = (float(armor) * 0.5) * damageFactor;
         // add the armor reward to clients points
         userData[attacker].round_points += RoundFloat(armorReward);
+        */
 
         // if health before damage application is less than the total damage ammount
         // then apply the users health ammount instead of the total ammount of damage
