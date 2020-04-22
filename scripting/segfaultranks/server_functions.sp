@@ -76,7 +76,7 @@ bool InitUser(int client) {
 
 // Submits a round to the server. Returns true regardless of if the round actually updates on the server. Returns false if some failure happens trying to send it.
 // actual handling of if the submission was successful is on the callback function
-bool SendNewRound(int client, bool did_win, int round_points, int team_points, int team_count) {
+bool SendNewRound(int client, bool did_win, int round_points, int team_points, int team_count, int total_points, int total_count) {
     char url[128];
     Format(url, sizeof(url), "%s/%s", BASE_API_URL, NEW_ROUND);
 
@@ -98,12 +98,21 @@ bool SendNewRound(int client, bool did_win, int round_points, int team_points, i
     char strRoundPoints[32];
     IntToString(round_points, strRoundPoints, sizeof(strRoundPoints));
     SteamWorks_SetHTTPRequestGetOrPostParameter(authRequest, "round_points", strRoundPoints);
+
     char strTeamPoints[32];
     IntToString(team_points, strTeamPoints, sizeof(strTeamPoints));
     SteamWorks_SetHTTPRequestGetOrPostParameter(authRequest, "team_points", strTeamPoints);
     char strTeamCount[32];
     IntToString(team_count, strTeamCount, sizeof(strTeamCount));
     SteamWorks_SetHTTPRequestGetOrPostParameter(authRequest, "team_count", strTeamCount);
+
+    char strTotalPoints[32];
+    IntToString(total_points, strTotalPoints, sizeof(strTotalPoints));
+    SteamWorks_SetHTTPRequestGetOrPostParameter(authRequest, "total_points", strTotalPoints);
+    char strTotalCount[32];
+    IntToString(total_count, strTotalCount, sizeof(strTotalCount));
+    SteamWorks_SetHTTPRequestGetOrPostParameter(authRequest, "total_count", strTotalCount);
+
     /*
     Triggers a HTTPRequestCompleted_t callback.
     Returns true upon successfully setting the parameter.

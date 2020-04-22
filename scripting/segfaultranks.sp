@@ -128,6 +128,7 @@ void HookEvents() {
     HookEvent("bomb_defused", Event_Bomb);
     HookEvent("bomb_planted", Event_Bomb);
     HookEvent("player_death", Event_PlayerDeath);
+    HookEvent("player_spawned", Event_PlayerSpawned);
     //HookEvent("player_hurt", Event_DamageDealt_Pre, EventHookMode_Pre);
     HookEvent("round_end", Event_RoundEnd);
 }
@@ -355,6 +356,16 @@ static bool CheckChatAlias(const char[] alias, const char[] command, const char[
     return false;
 }
 
+// Hook when the player spawns so we can update things at the beginning of a new round
+public Action Event_PlayerSpawned(Event event, const char[] name, bool dontBroadcast) {
+    int client = event.GetInt("userid");
+    // only set data if they are a valid player
+    if (IsPlayer(client)) {
+        // set client did_spawn so we know that they started this round alive (for avoiding ranking mid-round join players a zero score)
+        userData[client].did_spawn = true;
+    }
+}
+
 // Points Events
 /**
  * These events update player "rounds points" for computing rws at the end of
@@ -490,19 +501,22 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
  * Here we apply magic updates to a player's rws based on the previous round.
  */
 static void RoundUpdate(int client, bool winner) {
-    if(!OnActiveTeam(client)){return;}//avoid submitting rounds for spectators
+    if(!OnActiveTeam(client) || !userData[client].did_spawn ){return;}//avoid submitting rounds for spectators or mid-round joiners
 // todo make minimumEnemies a cvar
 // todo make minimumTeam
-#define minimumEnemies 1
-#define minimumTeam 1
+// there needs to be at least two on each team for now until the system is fixed to reward solo players correctly
+#define minimumEnemies 2
+#define minimumTeam 2
     int totalPlayers = 0;
     int teamPlayers = 0;
-    int sum = 0;
+    int team_round_points = 0;
+    int total_round_points = 0;
     for (int i = 1; i <= MaxClients; i++) {
-        if (OnActiveTeam(i)) {
+        if (OnActiveTeam(i) && userData[i].did_spawn) {
             totalPlayers++;
+            total_round_points += userData[i].round_points;
             if (GetClientTeam(i) == GetClientTeam(client)) {
-                sum += userData[i].round_points;
+                team_round_points += userData[i].round_points;
                 teamPlayers++;
             }
         }
@@ -518,7 +532,7 @@ static void RoundUpdate(int client, bool winner) {
 
     if (teamPlayers >= minimumTeam && totalPlayers - teamPlayers >= minimumEnemies) {
         PrintToServer("RoundUpdate: Conditions met to update round.");
-        if(SendNewRound(client, winner, userData[client].round_points, sum, teamPlayers)) {
+        if(SendNewRound(client, winner, userData[client].round_points, team_round_points, teamPlayers, total_round_points, totalPlayers)) {
             LogDebug("SendNewRound was a success for client: %i", client);
         } else {
             LogDebug("Failed to SendNewRound for client: %i", client);
@@ -545,7 +559,7 @@ static void RoundUpdate(int client, bool winner) {
 
 public Action Command_TestSend(int client, int args) {
     if (IsPlayer(client)/* && IsOnDb(client)*/) {
-        if(SendNewRound(client, true, 300, 600, 5)) {
+        if(SendNewRound(client, true, 200, 700, 5, 1200, 10)) {
             ReplyToCommand(client, "sent in a test round for you, currently with RWS=%f, roundsplayed=%d", userData[client].rws, userData[client].rounds_total);
         } else {
             ReplyToCommand(client, "Sending the new round resulted in an error before it sent.");

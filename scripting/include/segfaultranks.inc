@@ -26,6 +26,9 @@ enum struct UserData {
   int rounds_total;
   int round_points;
 
+  // for checking if someone started the round alive or not
+  bool did_spawn;
+
   void ClearData() {
     this.on_db = false;
 
@@ -38,6 +41,7 @@ enum struct UserData {
 
     this.rounds_total = 0;
     this.round_points = 0;
+    this.did_spawn = false;
   }
 
   void ResetStats() {
@@ -50,6 +54,7 @@ enum struct UserData {
 
   void ResetRound() {
     this.round_points = 0;
+    this.did_spawn = false;
   }
 
   // compares stored steam to double check that the current client id matches the steam of said client id
