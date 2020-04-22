@@ -60,7 +60,16 @@ enum struct UserData {
   // compares stored steam to double check that the current client id matches the steam of said client id
   // if a user disconnects before a web callback is received we don't want the callback to accidentaly overwrite another user
   bool CheckSteamId(char[] steamId) {
-    return StrEqual(steamId, this.steamid2);
+    //move the values into their own buffers
+    char stored_steam[64];
+    char returned_steam[64];
+    strcopy(stored_steam, sizeof(stored_steam), this.steamid2);
+    strcopy(returned_steam, sizeof(returned_steam), steamId);
+    // trim any trailing spaces in place
+    TrimString(stored_steam);
+    TrimString(returned_steam);
+    // now case insensitive compare and return the result
+    return StrEqual(returned_steam, stored_steam, false);
   }
 
   bool ParseFromJson(char[] jsonBody, bool initClient = false) {
