@@ -44,7 +44,7 @@ public UserData userData[MAXPLAYERS + 1];
 // this can be changed if we come up with some new algorithim that still rewards solo players
 // one option is having a "minimum required contribution score" to compare against to affect the score
 // another option is to use the entire servers players as an average instead of per-team or even use server average for effectiveness value like above
-int minimumPlayers = 4;
+int minimumPlayers = 2;
 // minimum rounds played required before user is shown on leaderboard
 //int minimumRounds = 0;
 public char baseApiUrl[64] = "http://localhost:1337/v1";
@@ -501,18 +501,21 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
  * Here we apply magic updates to a player's rws based on the previous round.
  */
 static void RoundUpdate(int client, bool winner) {
-    if(!OnActiveTeam(client) || !userData[client].did_spawn ){return;}//avoid submitting rounds for spectators or mid-round joiners
+    if(!OnActiveTeam(client)/* || !userData[client].did_spawn*/ ){
+        PrintToServer("client %i was not on an active team or did not spawn this round", client);
+        return;
+    }//avoid submitting rounds for spectators or mid-round joiners
 // todo make minimumEnemies a cvar
 // todo make minimumTeam
 // there needs to be at least two on each team for now until the system is fixed to reward solo players correctly
-#define minimumEnemies 2
-#define minimumTeam 2
+#define minimumEnemies 1
+#define minimumTeam 1
     int totalPlayers = 0;
     int teamPlayers = 0;
     int team_round_points = 0;
     int total_round_points = 0;
     for (int i = 1; i <= MaxClients; i++) {
-        if (OnActiveTeam(i) && userData[i].did_spawn) {
+        if (OnActiveTeam(i)/* && userData[i].did_spawn*/) {
             totalPlayers++;
             total_round_points += userData[i].round_points;
             if (GetClientTeam(i) == GetClientTeam(client)) {
