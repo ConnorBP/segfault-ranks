@@ -38,6 +38,37 @@ bool apiConnected = true; //TODO SHOULD BE FALSE BY DEFAULT IS TRUE FOR TESTING 
 // Local cache of state user stats
 public UserData userData[MAXPLAYERS + 1];
 
+// leaderboard cache
+public LeaderData topTenLeaderboard[10];
+public int leaderboardLastLoaded = 0;
+public bool leaderboardLoaded = false;
+
+public void ParseLeaderboardDataIntoCache(char[] jsonBody, LeaderData[] intoCache, int cacheMaxCount)
+{
+    leaderboardLoaded = false;
+    // data should be in an object array format so we get that
+    JSON_Array arr = view_as<JSON_Array>(json_decode(jsonBody));
+    new i=0;
+    while(i < cacheMaxCount) {
+        if(arr != null) {
+            JSON_Object rankObj = arr.GetObject(i);
+            if(rankObj != null) {
+                intoCache[i].SetFromJson(rankObj);
+            } else {
+                // if we get less than the ammount our cache accepts make sure we don't keep old data in the rest of it
+                intoCache[i].ClearData();
+            }
+        } else {
+            // if we get less than the ammount our cache accepts make sure we don't keep old data in the rest of it
+            intoCache[i].ClearData();
+        }
+        i++;
+    } 
+
+    leaderboardLastLoaded = GetTime();
+    leaderboardLoaded = true;
+}
+
 // convar local variables
 // minimum players required for ranks to calculate
 // must be minimum 4 for now (Can't calculate a percent for a team when the percent is always 100 with one person on a team)
@@ -46,7 +77,7 @@ public UserData userData[MAXPLAYERS + 1];
 // another option is to use the entire servers players as an average instead of per-team or even use server average for effectiveness value like above
 int minimumPlayers = 2;
 // minimum rounds played required before user is shown on leaderboard
-//int minimumRounds = 0;
+int minimumRounds = 50;
 public char baseApiUrl[64] = "http://localhost:1337/v1";
 
 
@@ -60,7 +91,7 @@ ConVar cvarRetakesMode;
 // wether or not users can .stats other players
 ConVar cvarAllowStatsOtherCommand;
 //ConVar cvarMinimumPlayers;
-//ConVar cvarMinimumRounds;
+ConVar cvarMinimumRounds;
 
 
 #include "segfaultranks/util.sp"
@@ -103,6 +134,10 @@ void InitializeDatabaseConnection() {
         LogError("You must have either the SteamWorks extension installed to run segfaultranks");
         SetFailState("Cannot start segfault stats without steamworks extension.");
     }
+
+    // send request to update/init local leaderboard cache
+    GetLeaderboardData(minimumRounds);
+
     //  In here we will verify that the webservice is indeed running, and authorize ourselves with the api
 
     /*if (GetFeatureStatus(FeatureType_Native, "SteamWorks_CreateHTTPRequest") == FeatureStatus_Available) {
@@ -164,14 +199,14 @@ void RegisterConvars() {
     cvarRetakesMode = CreateConVar("segfaultranks_retakesmode_enabled", "0", "determines wether or not bomb planting is rewarded");
     cvarAllowStatsOtherCommand = CreateConVar("sm_segfaultranks_allow_stats_other", "1", "Whether players can use the .rws or !rws command on other players");
     //cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
-    //cvarMinimumRounds = CreateConVar("sm_segfaultrank_minimal_rounds", "0","Minimal rounds played for rank to be displayed", _, true, 0.0);
+    cvarMinimumRounds = CreateConVar("sm_segfaultrank_minimal_rounds", "50","Minimal rounds played for rank to be displayed on leaderboard", _, true, 0.0);
 
     AutoExecConfig(true, "segfaultranks", "sourcemod");
 }
 
 void GetCvarValues() {
     //minimumPlayers = cvarMinimumPlayers.IntValue;
-    //minimumRounds = cvarMinimumRounds.IntValue;
+    minimumRounds = cvarMinimumRounds.IntValue;
     cvarBaseApiUrl.GetString(baseApiUrl, sizeof(baseApiUrl));
 }
 
@@ -196,6 +231,7 @@ HookClient(int client) {
     if (GetFeatureStatus(FeatureType_Capability, "SDKHook_DmgCustomInOTD") == FeatureStatus_Available) {
         if(IsPlayer(client)) {
             SDKHook(client, SDKHook_OnTakeDamageAlive, OnTakeDamageAlive);
+            userData[client].did_hook = true;
         }
     } else {
         LogError("Feature SDKHook_DmgCustomInOTD was not availible. Failed to hook player damage event");
@@ -246,9 +282,8 @@ public void LoadPlayer(int client) {
     ReplaceString(name, sizeof(name), "'", "");
     strcopy(userData[client].display_name, MAX_NAME_LENGTH, name);
 
-    //char auth[32];
     GetClientAuthId(client, AUTH_METHOD, userData[client].steamid2, 64);
-    //strcopy(userData[client].steamid2, sizeof(userData[client].steamid2), auth);
+    TrimString(userData[client].steamid2);
 
     LogDebug("Added client %i auth id %s", client, userData[client].steamid2);
 
@@ -493,9 +528,23 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
             int team = GetClientTeam(i);
             if (team == CS_TEAM_CT || team == CS_TEAM_T) {
                 RoundUpdate(i, team == winner);
+                // run a check to make sure the user was initiated and hooked
+                CheckUser(i);
                 userData[i].ResetRound();
             }
         }
+    }
+}
+
+void CheckUser(int client) {
+    if(userData[client].did_hook == false ) {
+        // this user was never hooked for some reason, so lets hook them
+        HookClient(client);
+    }
+
+    if(IsOnDb(client) == false) {
+        // this user has not yet been initiated on the db for whatever reason, so lets resend that request
+        ReloadClient(client);
     }
 }
 

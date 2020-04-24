@@ -3,6 +3,7 @@
 #define BASE_API_URL baseApiUrl
 #define NEW_ROUND "newround"
 #define USER_INIT "userinit"
+#define GET_LEADERBOARD "leaderboard"
 
 // https://github.com/clugg/sm-json
 // this is where our json encoding results will go if we use decide to use the encoding features
@@ -124,6 +125,20 @@ bool SendNewRound(int client, bool did_win, int round_points, int team_points, i
     return SteamWorks_SendHTTPRequest(authRequest);
 }
 
+bool GetLeaderboardData(int minRounds) {
+    char url[128];
+    Format(url, sizeof(url), "%s/%s/%i", BASE_API_URL, GET_LEADERBOARD, minRounds);
+
+    Handle initRequest = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, url);
+    if (initRequest == INVALID_HANDLE) {
+        LogError("Failed to create HTTP request using url: %s", url);
+        return false;
+    }
+
+    SteamWorks_SetHTTPCallbacks(initRequest, SteamWorks_OnLeaderboardReceived);
+
+    return SteamWorks_SendHTTPRequest(initRequest);
+}
 
 
 // Callback functions
@@ -216,4 +231,36 @@ public void SteamWorks_OnNewRoundSent(Handle request, bool failure, bool request
         LogError("There was a problem trying to retreive the size of the response body in NewRoundSent callback.");
     }
 
+}
+
+public void SteamWorks_OnLeaderboardReceived(Handle request, bool failure, bool requestSuccessful, EHTTPStatusCode statusCode) {
+    if (failure || !requestSuccessful) {
+        LogError("API request failed, HTTP status code = %d", statusCode);
+        return;
+    }
+
+    int size;
+    if(SteamWorks_GetHTTPResponseBodySize(request, size)) {
+        if(size>0) {
+            char[] responseBody = new char[size];
+            SteamWorks_GetHTTPResponseBodyData(request, responseBody, size);
+
+            if (statusCode == k_EHTTPStatusCode200OK) {
+
+                PrintToServer("Got response: %s", responseBody);//temporary
+
+                // parse the received data into the appropriate client storage
+                ParseLeaderboardDataIntoCache(responseBody, topTenLeaderboard, 10);
+                PrintToServer("Leaderboard data was successfully parsed into local cache!");
+ 
+            } 
+            else {
+                LogError("Bad Status code: %i Response: %s", statusCode, responseBody);
+            }
+        } else {
+            LogError("The response body was empty while retreiving the user.");
+        }
+    } else {
+        LogError("There was a problem trying to retreive the size of the response body.");
+    }
 }

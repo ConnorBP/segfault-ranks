@@ -16,6 +16,8 @@ db struct:
 enum struct UserData {
 
   bool on_db;//have they been initialized/retreived from db yet?
+  bool did_hook; //to make sure we initiate a hook for the user
+
   int id;//database id index
 
   char display_name[MAX_NAME_LENGTH];
@@ -129,6 +131,55 @@ enum struct UserData {
       }
     }
   }*/
+}
+
+enum struct LeaderData {
+  int id;
+  int rank;
+  float rws;
+  int rounds_total;
+  char display_name[11];
+
+  void ClearData() {
+      this.id = 0;
+      this.rank = 0;
+      this.rws = 0.0;
+      this.rounds_total = 0;
+      this.display_name = "";
+  }
+
+  /* example return data
+[
+  {
+    "id": 3,
+    "rank": 1,
+    "rws": 19.64778,
+    "rounds_total": 7,
+    "display_name": "dankus yeetus"
+  },
+  {
+    "id": 1,
+    "rank": 2,
+    "rws": 9.48254,
+    "rounds_total": 2,
+    "display_name": "segfault"
+  }
+]
+*/
+
+  void SetFromJson(JSON_Object leaderboardPlayer) {
+    char jsonName[64];
+    leaderboardPlayer.GetString("display_name", jsonName, sizeof(jsonName));
+    // for whatever reason sizeof(this.display_name) doesn't want to work
+    // so watch out for this sizevalue being different than the above array size
+    CleanStringCharacters(jsonName, this.display_name, 11);
+    //TODO if name ends up empty put steam id instead
+
+    this.id = leaderboardPlayer.GetInt("id");
+    this.rank = leaderboardPlayer.GetInt("rank");
+    this.rws = leaderboardPlayer.GetFloat("rws");
+    this.rounds_total = leaderboardPlayer.GetInt("rounds_total");
+  }
 }
 
 enum ChatAliasMode {
