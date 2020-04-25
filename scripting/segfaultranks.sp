@@ -1,7 +1,7 @@
 #pragma semicolon 1 // Force strict semicolon mode.
 
 
-#define PLUGIN_VERSION "1.1.0"
+#define PLUGIN_VERSION "1.1.1"
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
@@ -209,7 +209,7 @@ void RegisterConvars() {
     cvarAllowStatsOtherCommand = CreateConVar("sm_segfaultranks_allow_stats_other", "1", "Whether players can use the .rws or !rws command on other players");
     //cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
     cvarMinimumEnemies = CreateConVar("sm_segfaultranks_minimumenemies", "2", "Minimum players on enemy team to start giving points", _, true, 1.0);
-    cvarMinimumTeam = CreateConVar("sm_segfaultranks_minimumenemies", "2", "Minimum players on enemy team to start giving points", _, true, 1.0);
+    cvarMinimumTeam = CreateConVar("sm_segfaultranks_minimumteam", "2", "Minimum players on enemy team to start giving points", _, true, 1.0);
 
     cvarMessageNewRws = CreateConVar("sm_segfaultrank_newrws_message", "1", "Wether or not new stats for users are sent to chat.");
 

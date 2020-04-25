@@ -323,7 +323,8 @@ public void SteamWorks_OnClientRankReceived(Handle request, bool failure, bool r
                             SetClientRwsDisplay(client, userData[client].rws);
                             char rwsMessage[64];
                             userData[client].GetRankDisplay(rwsMessage, sizeof(rwsMessage));
-                            SegfaultRanks_Message(client, rwsMessage);
+                            SegfaultRanks_MessageToAllExcept(client, rwsMessage);
+                            SegfaultRanks_Message(client, "{LIGHT_GREEN} %s", rwsMessage);
                         }
                     } else {
                         LogError("Failed to parse rank json from response body: %s", responseBody);

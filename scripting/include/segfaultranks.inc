@@ -257,6 +257,9 @@ native void SegfaultRanks_Message(int client, const char[] format, any:...);
 // Prints a plugin-formatted message to all clients.
 native void SegfaultRanks_MessageToAll(const char[] format, any:...);
 
+// Prints a plugin-formatted message to all clients except one.
+native void SegfaultRanks_MessageToAllExcept(int client, const char[] format, any:...);
+
 
 // Global Forwards
 
@@ -286,6 +289,7 @@ typedef RankCallback = function Action(int client, int rank, any data);
 public __pl_segfaultranks_SetNTVOptional() {
   MarkNativeAsOptional("SegfaultRanks_Message");
   MarkNativeAsOptional("SegfaultRanks_MessageToAll");
+  MarkNativeAsOptional("SegfaultRanks_MessageToAllExcept");
   MarkNativeAsOptional("SegfaultRanks_AddChatAlias");
 }
 #endif
