@@ -1,7 +1,7 @@
 #pragma semicolon 1 // Force strict semicolon mode.
 
 
-#define PLUGIN_VERSION "0.9.0"// 1.0.0 release candidate. Needs a few additional things to be ready
+#define PLUGIN_VERSION "0.9.1"// 1.0.0 release candidate. Needs a few additional things to be ready
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
@@ -42,6 +42,7 @@ public UserData userData[MAXPLAYERS + 1];
 public LeaderData topTenLeaderboard[10];
 public int leaderboardLastLoaded = 0;
 public bool leaderboardLoaded = false;
+static int cacheTime = 5 * 60; // 5 mins
 
 public void ParseLeaderboardDataIntoCache(char[] jsonBody, LeaderData[] intoCache, int cacheMaxCount)
 {
@@ -501,10 +502,19 @@ public bool HelpfulAttack(int attacker, int victim) {
     return ateam != vteam && attacker != victim;
 }
 
+void CheckLeaderboardCache() {
+    if(GetTime() - leaderboardLastLoaded > cacheTime) {
+        GetLeaderboardData(minimumRounds);
+    }
+}
+
 /**
  * Round end event, updates rws values for everyone.
  */
 public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast) {
+
+    CheckLeaderboardCache();
+
     if (!ShouldRank()) {
         // reset round points here anyways so that they don't accidentaly affect
         // the first real round
@@ -677,6 +687,10 @@ public Action Command_Leaderboard(int client, int args) {
     } else {
         ShowLeaderboard(client,0);
     }
+
+    // check if we need to update the cache after showing the current leaderboard (not before cause it may not load right away)
+    // for now we will only check on round ends actually but this may be useful later. I'd like to avoid double sending
+    //CheckLeaderboardCache();
     return Plugin_Handled;
 }
 
@@ -685,62 +699,36 @@ void ShowLeaderboard(int client, int page){
         return;
     }
 
-    if(page >0) {
+    if(page > 0) {
         LogDebug("leaderboard pages are not yet implemented.");
     }
 
-    //Menu menu = CreateMenuEx(GetMenuStyleHandle(MenuStyle_Radio),MenuHandler_Leaderboard);
-    //menu.Pagination = MENU_NO_PAGINATION;
-
     Panel panel = new Panel();
     panel.SetTitle("");
-    //panel.DrawItem("Yes");
-    //panel.DrawItem("No");
  
-    
-
     char temp[32];
-    //topTenLeaderboard[0].GetMenuDisplay(temp, sizeof(temp));
-    //Format(temp,sizeof(temp),"Leader: %s",temp);
-    //menu.SetTitle(temp);
-    //new i = 1;
     new i = 0;
     while(i < 10) {
         topTenLeaderboard[i].GetMenuDisplay(temp, sizeof(temp));
-        //menu.AddItem(temp,temp, DISABLED);
         panel.DrawText(temp);
         i++;
     }
-    //menu.Display(client, MENU_TIME_FOREVER);
+
     panel.DrawItem("Close");
     panel.Send(client, MenuHandler_Leaderboard, MENU_TIME_FOREVER);
  
     delete panel;
 }
 
-public int MenuHandler_Leaderboard(Menu menu, MenuAction action, int param1, int param2){
-	
-	/*if (action == MenuAction_Select)
-	{
-		char temp[250];
-	
-		menu.GetItem(param2, temp, sizeof(temp));
-		if(StringToInt(temp) >= 0){
-			ShowTOP(param1,StringToInt(temp)+1);
-		} else {
-			ShowTOP(param1,0);
-		}
-	}*/
-    if (action == MenuAction_Select)
-    {
-        PrintToConsole(param1, "You selected item: %d", param2);
-    }
-    else if (action == MenuAction_Cancel)
-    {
-        PrintToServer("Client %d's menu was cancelled.  Reason: %d", param1, param2);
-    }
-	/*if (action == MenuAction_End)
-	{
-		delete menu;
-	}*/
+public int MenuHandler_Leaderboard(Menu menu, MenuAction action, int param1, int param2)
+{
+    // do nothing for now
+    // if (action == MenuAction_Select)
+    // {
+    //     PrintToConsole(param1, "You selected item: %d", param2);
+    // }
+    // else if (action == MenuAction_Cancel)
+    // {
+    //     PrintToServer("Client %d's menu was cancelled.  Reason: %d", param1, param2);
+    // }
 }
