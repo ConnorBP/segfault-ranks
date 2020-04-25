@@ -4,6 +4,7 @@
 #define NEW_ROUND "newround"
 #define USER_INIT "userinit"
 #define GET_LEADERBOARD "leaderboard"
+#define GET_RANK "id/rank"
 
 // https://github.com/clugg/sm-json
 // this is where our json encoding results will go if we use decide to use the encoding features
@@ -129,15 +130,36 @@ bool GetLeaderboardData(int minRounds) {
     char url[128];
     Format(url, sizeof(url), "%s/%s/%i", BASE_API_URL, GET_LEADERBOARD, minRounds);
 
-    Handle initRequest = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, url);
-    if (initRequest == INVALID_HANDLE) {
+    Handle leaderboardRequest = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, url);
+    if (leaderboardRequest == INVALID_HANDLE) {
         LogError("Failed to create HTTP request using url: %s", url);
         return false;
     }
 
-    SteamWorks_SetHTTPCallbacks(initRequest, SteamWorks_OnLeaderboardReceived);
+    SteamWorks_SetHTTPCallbacks(leaderboardRequest, SteamWorks_OnLeaderboardReceived);
 
-    return SteamWorks_SendHTTPRequest(initRequest);
+    return SteamWorks_SendHTTPRequest(leaderboardRequest);
+}
+
+bool GetClientRank(int client) {
+    if(userData[client].on_db && userData[client].id != 0) {
+        char url[128];
+        Format(url, sizeof(url), "%s/%s/%i", BASE_API_URL, GET_RANK, userData[client].id);
+
+        Handle rankRequest = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, url);
+        if (rankRequest == INVALID_HANDLE) {
+            LogError("Failed to create HTTP request using url: %s", url);
+            return false;
+        }
+
+        SteamWorks_SetHTTPRequestContextValue(rankRequest, GetClientSerial(client));
+
+        SteamWorks_SetHTTPCallbacks(rankRequest, SteamWorks_OnClientRankReceived);
+
+        return SteamWorks_SendHTTPRequest(rankRequest);
+    } else {
+        return false;
+    }
 }
 
 
@@ -263,6 +285,54 @@ public void SteamWorks_OnLeaderboardReceived(Handle request, bool failure, bool 
                 ParseLeaderboardDataIntoCache(responseBody, topTenLeaderboard, 10);
                 PrintToServer("Leaderboard data was successfully parsed into local cache!");
  
+            } 
+            else {
+                LogError("Bad Status code: %i Response: %s", statusCode, responseBody);
+            }
+        } else {
+            LogError("The response body was empty while retreiving the user.");
+        }
+    } else {
+        LogError("There was a problem trying to retreive the size of the response body.");
+    }
+}
+
+public void SteamWorks_OnClientRankReceived(Handle request, bool failure, bool requestSuccessful, EHTTPStatusCode statusCode, int serial) {
+    if (failure || !requestSuccessful) {
+        LogError("API request failed, HTTP status code = %d", statusCode);
+        return;
+    }
+
+    int size;
+    if(SteamWorks_GetHTTPResponseBodySize(request, size)) {
+        if(size>0) {
+            char[] responseBody = new char[size];
+            SteamWorks_GetHTTPResponseBodyData(request, responseBody, size);
+
+            if (statusCode == k_EHTTPStatusCode200OK) {
+                if (serial != 0) {
+                    int client = GetClientFromSerial(serial);
+                    PrintToServer("Success received on get rank request for Client %i!", client);
+                    PrintToServer("Got response: %s", responseBody);//temporary
+
+                    // parse the received data into the appropriate client storage
+                    if(userData[client].ParseRankJson(responseBody)) {
+                        PrintToServer("Client %i data was successfully parsed into local cache!", client);
+                        // apply rws to scoreboard
+                        if(IsPlayer(client)) {
+                            SetClientRwsDisplay(client, userData[client].rws);
+                            char rwsMessage[64];
+                            userData[client].GetRankDisplay(rwsMessage, sizeof(rwsMessage));
+                            SegfaultRanks_Message(client, rwsMessage);
+                        }
+                    } else {
+                        LogError("Failed to parse rank json from response body: %s", responseBody);
+                    }
+                    // set on_db to true here even if setting the local variables fails for now just in case an initially empty stat breaks the json decoder.
+                    // users don't get rounds submitted until this is set to confirm they are initialized on the database
+                    //userData[client].on_db = true;//disabled, gets set inside of ParseFromJson
+                
+                }
             } 
             else {
                 LogError("Bad Status code: %i Response: %s", statusCode, responseBody);

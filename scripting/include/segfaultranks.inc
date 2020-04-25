@@ -28,6 +28,10 @@ enum struct UserData {
   int rounds_total;
   int round_points;
 
+  // the rank index for player returned from the get rank request
+  int rank;
+  int got_rank_time;
+
   // for checking if someone started the round alive or not
   bool did_spawn;
 
@@ -43,6 +47,10 @@ enum struct UserData {
 
     this.rounds_total = 0;
     this.round_points = 0;
+
+    this.rank = 0;
+    this.got_rank_time = 0;
+
     this.did_spawn = false;
   }
 
@@ -110,6 +118,45 @@ enum struct UserData {
     // Done. Set on_db and Return success
     this.on_db = true;
     return true;
+  }
+
+  bool ParseRankJson(char[] jsonBody) {
+    JSON_Object obj = json_decode(jsonBody);
+    
+    int json_id = obj.GetInt("id");
+    //if we are not initializing the client we need to double check
+    // that the existing steamid is the same as the one this response is for
+    if(this.id != json_id) {
+      LogError("Warning! get rank callback attempted to parse into client with db id %i with data from non-matching db id %i. Did someone disconnect?", this.id, json_id);
+      return false;
+    }
+
+    int json_rank = obj.GetInt("rank");
+    float json_rws = obj.GetFloat("rws");
+
+    // then apply the values to our local cache
+    if(json_rank != 0) {
+      this.rank = json_rank;
+    }
+    if (json_rws > 0.1) {
+      this.rws = json_rws;
+    }
+
+    return true;
+  }
+
+  void GetRankDisplay(char[] outputString, int outputSize) {
+    if(this.id != 0) {
+      //Format(outputString,outputSize,"%s rank %i with %.2f rws",this.display_name, this.rank, this.rws);
+      char place[6];
+      GetPlaceStr(this.rank, place, sizeof(place));
+      //limit to 13 and a whitespace, and put clean name into it
+      char smallName[13];
+      CleanStringCharacters(this.display_name, smallName, 13);
+      Format(outputString,outputSize,"Player %s is in %s. place with %.2f rws.", smallName, place, this.rws);
+    } else {
+      Format(outputString,outputSize,"%s","Could not get rank.");
+    }
   }
 
   // if steam auth and name are set, then this can be called to load a user from the database

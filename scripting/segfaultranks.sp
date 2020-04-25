@@ -1,7 +1,7 @@
 #pragma semicolon 1 // Force strict semicolon mode.
 
 
-#define PLUGIN_VERSION "1.0.1"// 1.0.0 release candidate. Needs a few additional things to be ready
+#define PLUGIN_VERSION "1.0.2"// 1.0.0 release candidate. Needs a few additional things to be ready
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
@@ -693,7 +693,12 @@ public Action Command_RWS(int client, int args) {
     return Plugin_Handled;
 }
 
-public Action Command_Rank(int client, int args) { return Plugin_Handled; }
+public Action Command_Rank(int client, int args) {
+    if(IsPlayer(client) && !GetClientRank(client)) {
+        SegfaultRanks_Message(client, "Failed to get rank, please try again later.");
+    } 
+    return Plugin_Handled;
+}
 
 public Action Command_Leaderboard(int client, int args) { 
     if(!pluginEnabled || client == 0 || !IsClientInGame(client)) {
