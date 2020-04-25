@@ -350,9 +350,9 @@ public void OnClientSayCommand_Post(int client, const char[] command, const char
         ArrayList msgs = new ArrayList(msgSize);
         
         msgs.PushString("{PURPLE}.stats {NORMAL}displays your stats");
-        msgs.PushString("{PURPLE}.top {NORMAL}shows the leaderboard");
         msgs.PushString("{PURPLE}.rank {NORMAL}see your current ranking");
-        msgs.PushString("{PURPLE}.segfault {NORMAL}cause a segmentation violation");
+        msgs.PushString("{PURPLE}.top {NORMAL}opens the leaderboard");
+        msgs.PushString("{PURPLE}.help {NORMAL}displays this message");
         
         bool block = false;
         Call_StartForward(g_hOnHelpCommand);
