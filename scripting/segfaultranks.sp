@@ -1,7 +1,7 @@
 #pragma semicolon 1 // Force strict semicolon mode.
 
 
-#define PLUGIN_VERSION "1.0.0"// 1.0.0 release candidate. Needs a few additional things to be ready
+#define PLUGIN_VERSION "1.0.1"// 1.0.0 release candidate. Needs a few additional things to be ready
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
@@ -71,7 +71,11 @@ public void ParseLeaderboardDataIntoCache(char[] jsonBody, LeaderData[] intoCach
 // this can be changed if we come up with some new algorithim that still rewards solo players
 // one option is having a "minimum required contribution score" to compare against to affect the score
 // another option is to use the entire servers players as an average instead of per-team or even use server average for effectiveness value like above
-int minimumPlayers = 2;
+int minimumPlayers = 4;
+
+int minimumEnemies = 2;
+int minimumTeam = 2;
+
 // minimum rounds played required before user is shown on leaderboard
 int minimumRounds = 50;
 public char baseApiUrl[64] = "http://localhost:1337/v1";
@@ -82,6 +86,8 @@ public bool messageNewRws;
 // Forwards
 Handle g_hOnHelpCommand = INVALID_HANDLE;
 
+ConVar cvarPluginVersion;
+
 // Convars
 ConVar cvarMessagePrefix;
 ConVar cvarBaseApiUrl;
@@ -89,6 +95,8 @@ ConVar cvarRetakesMode;
 // wether or not users can .stats other players
 ConVar cvarAllowStatsOtherCommand;
 //ConVar cvarMinimumPlayers;
+ConVar cvarMinimumEnemies;
+ConVar cvarMinimumTeam;
 ConVar cvarMinimumRounds;
 ConVar cvarMessageNewRws;
 
@@ -191,6 +199,9 @@ static void AddUserCommand(const char[] command, ConCmd callback, const char[] d
 
 void RegisterConvars() {
 
+    cvarPluginVersion = CreateConVar("sm_segfaultranks_version", PLUGIN_VERSION, "Current segfaultranks version", FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_DONTRECORD);
+    cvarPluginVersion.SetString(PLUGIN_VERSION);
+
     cvarMessagePrefix = CreateConVar("sm_segfaultranks_message_prefix", "[{PURPLE}Ranks{NORMAL}]","The tag applied before plugin messages. If you want no tag, you can set an empty string here.");
 
     cvarBaseApiUrl = CreateConVar("segfaultranks_api_url", "http://localhost:1337/v1", "Whether players can use the .rws or !rws command on other players");
@@ -198,6 +209,8 @@ void RegisterConvars() {
     cvarRetakesMode = CreateConVar("segfaultranks_retakesmode_enabled", "0", "determines wether or not bomb planting is rewarded");
     cvarAllowStatsOtherCommand = CreateConVar("sm_segfaultranks_allow_stats_other", "1", "Whether players can use the .rws or !rws command on other players");
     //cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
+    cvarMinimumEnemies = CreateConVar("sm_segfaultranks_minimumenemies", "2", "Minimum players on enemy team to start giving points", _, true, 1.0);
+    cvarMinimumTeam = CreateConVar("sm_segfaultranks_minimumenemies", "2", "Minimum players on enemy team to start giving points", _, true, 1.0);
     cvarMinimumRounds = CreateConVar("sm_segfaultrank_minimal_rounds", "50","Minimal rounds played for rank to be displayed on leaderboard", _, true, 0.0);
 
     cvarMessageNewRws = CreateConVar("sm_segfaultrank_newrws_message", "1", "Wether or not new stats for users are sent to chat.");
@@ -207,6 +220,8 @@ void RegisterConvars() {
 
 void GetCvarValues() {
     //minimumPlayers = cvarMinimumPlayers.IntValue;
+    minimumEnemies = cvarMinimumEnemies.IntValue;
+    minimumTeam = cvarMinimumTeam.IntValue;
     minimumRounds = cvarMinimumRounds.IntValue;
     cvarBaseApiUrl.GetString(baseApiUrl, sizeof(baseApiUrl));
     messageNewRws = cvarMessageNewRws.BoolValue;
@@ -590,11 +605,6 @@ static void RoundUpdate(int client, bool winner, int teamPlayers, int team_round
         PrintToServer("client %i was not on an active team or did not spawn this round", client);
         return;
     }//avoid submitting rounds for spectators or mid-round joiners
-// todo make minimumEnemies a cvar
-// todo make minimumTeam
-// there needs to be at least two on each team for now until the system is fixed to reward solo players correctly
-#define minimumEnemies 1
-#define minimumTeam 1
 
     //temp debug stuff
     //userData[client].round_points = 100;
