@@ -40,6 +40,31 @@ stock void CleanStringCharacters(char[] oldString, char[] newString, int newStri
     }
 }
 
+stock void GetPlaceStr(int place, char[] buffer, int bufferSize) {
+
+    /*n =>
+    n+(
+        n/10%10==1
+        ||(n%=10)<1
+        ||n>3
+        ?"th":n<2?"st":n<3?"nd":"rd"
+    );*/
+
+    int k = place % 10;
+    char placePostFix[4] = "";
+    if(place/10%10==1 || k<1 || k > 3) {
+        placePostFix = "th";
+    } else if(k<2) {
+        placePostFix = "st";
+    } else if (k<3) {
+        placePostFix = "nd";
+    } else {
+        placePostFix = "rd";
+    }
+        
+    Format(buffer, bufferSize, "%i%s", place, placePostFix);
+}
+
 /** Chat aliases loaded **/
 ArrayList g_ChatAliases;
 ArrayList g_ChatAliasesCommands;

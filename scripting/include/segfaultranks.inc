@@ -180,6 +180,17 @@ enum struct LeaderData {
     this.rws = leaderboardPlayer.GetFloat("rws");
     this.rounds_total = leaderboardPlayer.GetInt("rounds_total");
   }
+
+  void GetMenuDisplay(char[] outputString, int outputSize) {
+    if(this.id != 0) {
+      //Format(outputString,outputSize,"%s rank %i with %.2f rws",this.display_name, this.rank, this.rws);
+      char place[6];
+      GetPlaceStr(this.rank, place, sizeof(place));
+      Format(outputString,outputSize,"%s. %s %.2f", place, this.display_name, this.rws);
+    } else {
+      Format(outputString,outputSize,"%s","None Qualified");
+    }
+  }
 }
 
 enum ChatAliasMode {

@@ -1,7 +1,7 @@
 #pragma semicolon 1 // Force strict semicolon mode.
 
 
-#define PLUGIN_VERSION "0.1.1-dev"
+#define PLUGIN_VERSION "0.9.0"// 1.0.0 release candidate. Needs a few additional things to be ready
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
@@ -50,20 +50,15 @@ public void ParseLeaderboardDataIntoCache(char[] jsonBody, LeaderData[] intoCach
     JSON_Array arr = view_as<JSON_Array>(json_decode(jsonBody));
     new i=0;
     while(i < cacheMaxCount) {
+        intoCache[i].ClearData();
         if(arr != null) {
             JSON_Object rankObj = arr.GetObject(i);
             if(rankObj != null) {
                 intoCache[i].SetFromJson(rankObj);
-            } else {
-                // if we get less than the ammount our cache accepts make sure we don't keep old data in the rest of it
-                intoCache[i].ClearData();
             }
-        } else {
-            // if we get less than the ammount our cache accepts make sure we don't keep old data in the rest of it
-            intoCache[i].ClearData();
         }
         i++;
-    } 
+    }
 
     leaderboardLastLoaded = GetTime();
     leaderboardLoaded = true;
@@ -178,16 +173,16 @@ void RegisterCommands() {
 }
 
 static void AddUserCommand(const char[] command, ConCmd callback, const char[] description, 
-	/*Permission p = Permission_All,*/ ChatAliasMode mode = ChatAlias_Always) {
-	char smCommandBuffer[64];
-	Format(smCommandBuffer, sizeof(smCommandBuffer), "sm_%s", command);
-	g_Commands.PushString(smCommandBuffer);
-	RegConsoleCmd(smCommandBuffer, callback, description);
-	//SegfaultRanks_SetPermissions(smCommandBuffer, p);//for now all of the "UserCommands" are unpermissioned and admin commands have no place there
-	
-	char dotCommandBuffer[64];
-	Format(dotCommandBuffer, sizeof(dotCommandBuffer), ".%s", command);
-	SegfaultRanks_AddChatAlias(dotCommandBuffer, smCommandBuffer, mode);
+    /*Permission p = Permission_All,*/ ChatAliasMode mode = ChatAlias_Always) {
+    char smCommandBuffer[64];
+    Format(smCommandBuffer, sizeof(smCommandBuffer), "sm_%s", command);
+    g_Commands.PushString(smCommandBuffer);
+    RegConsoleCmd(smCommandBuffer, callback, description);
+    //SegfaultRanks_SetPermissions(smCommandBuffer, p);//for now all of the "UserCommands" are unpermissioned and admin commands have no place there
+    
+    char dotCommandBuffer[64];
+    Format(dotCommandBuffer, sizeof(dotCommandBuffer), ".%s", command);
+    SegfaultRanks_AddChatAlias(dotCommandBuffer, smCommandBuffer, mode);
 }
 
 void RegisterConvars() {
@@ -666,4 +661,86 @@ public Action Command_RWS(int client, int args) {
 
 public Action Command_Rank(int client, int args) { return Plugin_Handled; }
 
-public Action Command_Leaderboard(int client, int args) { return Plugin_Handled; }
+public Action Command_Leaderboard(int client, int args) { 
+    if(!pluginEnabled || client == 0 || !IsClientInGame(client)) {
+        return Plugin_Handled;
+    }
+    
+    char pageArg[5];
+    GetCmdArg(1,pageArg,sizeof(pageArg));
+    int pageNum = 0;
+    if(!StrEqual(pageArg,"")){
+        pageNum = StringToInt(pageArg);
+    }
+    if (pageNum > 0) {
+        ShowLeaderboard(client,pageNum);
+    } else {
+        ShowLeaderboard(client,0);
+    }
+    return Plugin_Handled;
+}
+
+void ShowLeaderboard(int client, int page){
+    if(client == 0 || !IsClientInGame(client)) {
+        return;
+    }
+
+    if(page >0) {
+        LogDebug("leaderboard pages are not yet implemented.");
+    }
+
+    //Menu menu = CreateMenuEx(GetMenuStyleHandle(MenuStyle_Radio),MenuHandler_Leaderboard);
+    //menu.Pagination = MENU_NO_PAGINATION;
+
+    Panel panel = new Panel();
+    panel.SetTitle("");
+    //panel.DrawItem("Yes");
+    //panel.DrawItem("No");
+ 
+    
+
+    char temp[32];
+    //topTenLeaderboard[0].GetMenuDisplay(temp, sizeof(temp));
+    //Format(temp,sizeof(temp),"Leader: %s",temp);
+    //menu.SetTitle(temp);
+    //new i = 1;
+    new i = 0;
+    while(i < 10) {
+        topTenLeaderboard[i].GetMenuDisplay(temp, sizeof(temp));
+        //menu.AddItem(temp,temp, DISABLED);
+        panel.DrawText(temp);
+        i++;
+    }
+    //menu.Display(client, MENU_TIME_FOREVER);
+    panel.DrawItem("Close");
+    panel.Send(client, MenuHandler_Leaderboard, MENU_TIME_FOREVER);
+ 
+    delete panel;
+}
+
+public int MenuHandler_Leaderboard(Menu menu, MenuAction action, int param1, int param2){
+	
+	/*if (action == MenuAction_Select)
+	{
+		char temp[250];
+	
+		menu.GetItem(param2, temp, sizeof(temp));
+		if(StringToInt(temp) >= 0){
+			ShowTOP(param1,StringToInt(temp)+1);
+		} else {
+			ShowTOP(param1,0);
+		}
+	}*/
+    if (action == MenuAction_Select)
+    {
+        PrintToConsole(param1, "You selected item: %d", param2);
+    }
+    else if (action == MenuAction_Cancel)
+    {
+        PrintToServer("Client %d's menu was cancelled.  Reason: %d", param1, param2);
+    }
+	/*if (action == MenuAction_End)
+	{
+		delete menu;
+	}*/
+}
