@@ -521,28 +521,51 @@ public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 
     CheckLeaderboardCache();
 
-    if (!ShouldRank()) {
-        // reset round points here anyways so that they don't accidentaly affect
-        // the first real round
-        // TODO
+    if (ShouldRank()) {
+        int winner = event.GetInt("winner");
+
+        int totalPlayers = 0;
+        int total_round_points = 0;
+        int winnerPlayers = 0;
+        int winner_round_points = 0;
+        int loserPlayers = 0;
+        int loser_round_points = 0;
+
         for (int i = 1; i <= MaxClients; i++) {
-            if (IsPlayer(i) && IsOnDb(i)) {
-                userData[i].ResetRound();
+            if (OnActiveTeam(i)) {
+                totalPlayers++;
+                total_round_points += userData[i].round_points;
+                if (GetClientTeam(i) == winner) {
+                    winner_round_points += userData[i].round_points;
+                    winnerPlayers++;
+                } else {
+                    loser_round_points += userData[i].round_points;
+                    loserPlayers++;
+                }
             }
         }
-        return;
+
+        for (int i = 1; i <= MaxClients; i++) {
+            if (IsPlayer(i) && IsOnDb(i)) {
+                int team = GetClientTeam(i);
+                if (team == CS_TEAM_CT || team == CS_TEAM_T) {
+                    bool didWin = team == winner;
+                    if(didWin) {
+                        RoundUpdate(i, didWin, winnerPlayers, winner_round_points, totalPlayers, total_round_points);
+                    } else {
+                        RoundUpdate(i, didWin, loserPlayers, loser_round_points, totalPlayers, total_round_points);
+                    }
+                    // run a check to make sure the user was initiated and hooked
+                    CheckUser(i);
+                }
+            }
+        }
     }
 
-    int winner = event.GetInt("winner");
+    // reset the players in another loop afterwards so that total_points count is not affected
     for (int i = 1; i <= MaxClients; i++) {
         if (IsPlayer(i) && IsOnDb(i)) {
-            int team = GetClientTeam(i);
-            if (team == CS_TEAM_CT || team == CS_TEAM_T) {
-                RoundUpdate(i, team == winner);
-                // run a check to make sure the user was initiated and hooked
-                CheckUser(i);
-                userData[i].ResetRound();
-            }
+            userData[i].ResetRound();
         }
     }
 }
@@ -562,7 +585,7 @@ void CheckUser(int client) {
 /**
  * Here we apply magic updates to a player's rws based on the previous round.
  */
-static void RoundUpdate(int client, bool winner) {
+static void RoundUpdate(int client, bool winner, int teamPlayers, int team_round_points, int totalPlayers, int total_round_points) {
     if(!OnActiveTeam(client)/* || !userData[client].did_spawn*/ ){
         PrintToServer("client %i was not on an active team or did not spawn this round", client);
         return;
@@ -572,21 +595,6 @@ static void RoundUpdate(int client, bool winner) {
 // there needs to be at least two on each team for now until the system is fixed to reward solo players correctly
 #define minimumEnemies 1
 #define minimumTeam 1
-    int totalPlayers = 0;
-    int teamPlayers = 0;
-    int team_round_points = 0;
-    int total_round_points = 0;
-    for (int i = 1; i <= MaxClients; i++) {
-        if (OnActiveTeam(i)/* && userData[i].did_spawn*/) {
-            totalPlayers++;
-            total_round_points += userData[i].round_points;
-            if (GetClientTeam(i) == GetClientTeam(client)) {
-                team_round_points += userData[i].round_points;
-                teamPlayers++;
-            }
-        }
-    }
-
 
     //temp debug stuff
     //userData[client].round_points = 100;
