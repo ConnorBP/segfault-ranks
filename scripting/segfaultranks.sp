@@ -1,7 +1,7 @@
 #pragma semicolon 1 // Force strict semicolon mode.
 
 
-#define PLUGIN_VERSION "1.1.1"
+#define PLUGIN_VERSION "1.2.0"
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
@@ -487,25 +487,31 @@ public Action OnTakeDamageAlive(int victim, int& attacker, int& inflictor, float
         // fetch the events damage ammount
         //int damage = event.GetInt("dmg_health");
 
-        /* Currently this gives quite boosted stats (maybe)
-        // reward more for killing armoured opponents (should reduce how much eco-fragging is rewarded)
         int armor = GetClientArmor(victim);
-        // compress damage value into value between 0 and 1
-        float damageFactor = 1.0 - (1.0 / (damage + 1.0));
+
+        // Currently this gives quite boosted stats (maybe)
+        // reward more for killing armoured opponents (should reduce how much eco-fragging is rewarded)
+        // compress damage value into value between 0 and 1 (not using this one anymore)
+        //float damageFactor = 1.0 - (1.0 / (damage + 1.0));
+
         // set the reward as half of the victims armor times the damage factor
         // (if a user does 100 damage they get half the victims armor as points)
-        float armorReward = (float(armor) * 0.5) * damageFactor;
+        //float armorReward = (float(armor) * 0.5) * damageFactor;
         // add the armor reward to clients points
-        userData[attacker].round_points += RoundFloat(armorReward);
-        */
+        //userData[attacker].round_points += RoundFloat(armorReward);
 
+        // should equate to a value between 0.5 amd 1.0 to multiply against 
+        // if the victim had no armor, the attacker gets half their hp damage as points.
+        // if the victim had 100 armor, the attacker gets all of their hp damage as points
+        float armorFactor = 0.5 + 0.5 * ((float(armor) + 1.0) / 100.0);
+        
         // if health before damage application is less than the total damage ammount
         // then apply the users health ammount instead of the total ammount of damage
         // this should solve awp-headshots over-rewarding as well as allow for proper ADR calculations later
         if(health < damage) {
-            userData[attacker].round_points += health;
+            userData[attacker].round_points += RoundFloat(float(health) * armorFactor);
         } else {
-            userData[attacker].round_points += RoundFloat(damage);
+            userData[attacker].round_points += RoundFloat(damage * armorFactor);
         }
     }
     return Plugin_Continue;
