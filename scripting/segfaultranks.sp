@@ -1,7 +1,7 @@
 #pragma semicolon 1 // Force strict semicolon mode.
 
 
-#define PLUGIN_VERSION "1.0.2"// 1.0.0 release candidate. Needs a few additional things to be ready
+#define PLUGIN_VERSION "1.0.3"// 1.0.0 release candidate. Needs a few additional things to be ready
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
@@ -694,9 +694,21 @@ public Action Command_RWS(int client, int args) {
 }
 
 public Action Command_Rank(int client, int args) {
-    if(IsPlayer(client) && !GetClientRank(client)) {
-        SegfaultRanks_Message(client, "Failed to get rank, please try again later.");
-    } 
+    if(IsPlayer(client)) {
+        // cache previous results for two minutes to avoid spamming our database
+        if(userData[client].got_rank_time == 0 || GetTime() - userData[client].got_rank_time > 120) {
+            if(!GetClientRank(client)) {
+                SegfaultRanks_Message(client, "Failed to get rank, please try again later.");
+            }
+        } else {
+            // if we are within the 2 min cache time and last time was not 0
+            // then just display the old value we already have
+            char rwsMessage[64];
+            userData[client].GetRankDisplay(rwsMessage, sizeof(rwsMessage));
+            SegfaultRanks_Message(client, rwsMessage);
+            //SegfaultRanks_Message(client, "this was a cached value");
+        }
+    }
     return Plugin_Handled;
 }
 

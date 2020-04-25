@@ -137,6 +137,7 @@ enum struct UserData {
     // then apply the values to our local cache
     if(json_rank != 0) {
       this.rank = json_rank;
+      this.got_rank_time = GetTime();
     }
     if (json_rws > 0.1) {
       this.rws = json_rws;
