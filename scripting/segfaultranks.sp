@@ -76,6 +76,8 @@ int minimumPlayers = 2;
 int minimumRounds = 50;
 public char baseApiUrl[64] = "http://localhost:1337/v1";
 
+public bool messageNewRws;
+
 
 // Forwards
 Handle g_hOnHelpCommand = INVALID_HANDLE;
@@ -88,6 +90,7 @@ ConVar cvarRetakesMode;
 ConVar cvarAllowStatsOtherCommand;
 //ConVar cvarMinimumPlayers;
 ConVar cvarMinimumRounds;
+ConVar cvarMessageNewRws;
 
 
 #include "segfaultranks/util.sp"
@@ -167,7 +170,7 @@ void HookEvents() {
 void RegisterCommands() {
     g_Commands = new ArrayList(COMMAND_LENGTH);
     RegAdminCmd("sm_dumprws", Command_DumpRWS, ADMFLAG_KICK,"Dumps all player historical rws and rounds played");
-    RegAdminCmd("sm_testsend", Command_TestSend, ADMFLAG_KICK,"Sends a fake test-round to the database for testing purposes. Will be removed before release.");
+    //RegAdminCmd("sm_testsend", Command_TestSend, ADMFLAG_KICK,"Sends a fake test-round to the database for testing purposes. Will be removed before release.");
     AddUserCommand("rws", Command_RWS, "Show player's historical rws");
     AddUserCommand("rank", Command_Rank, "Show player's ELO Rank");
     AddUserCommand("leaderboard", Command_Leaderboard,"Show player's leaderboard position");
@@ -197,6 +200,8 @@ void RegisterConvars() {
     //cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
     cvarMinimumRounds = CreateConVar("sm_segfaultrank_minimal_rounds", "50","Minimal rounds played for rank to be displayed on leaderboard", _, true, 0.0);
 
+    cvarMessageNewRws = CreateConVar("sm_segfaultrank_newrws_message", "1", "Wether or not new stats for users are sent to chat.");
+
     AutoExecConfig(true, "segfaultranks", "sourcemod");
 }
 
@@ -204,6 +209,7 @@ void GetCvarValues() {
     //minimumPlayers = cvarMinimumPlayers.IntValue;
     minimumRounds = cvarMinimumRounds.IntValue;
     cvarBaseApiUrl.GetString(baseApiUrl, sizeof(baseApiUrl));
+    messageNewRws = cvarMessageNewRws.BoolValue;
 }
 
 void RegisterForwards() {
@@ -616,8 +622,8 @@ static void RoundUpdate(int client, bool winner) {
 // Commands
 
 
-public Action Command_TestSend(int client, int args) {
-    if (IsPlayer(client)/* && IsOnDb(client)*/) {
+/*public Action Command_TestSend(int client, int args) {
+    if (IsPlayer(client) && IsOnDb(client)) {
         if(SendNewRound(client, true, 200, 700, 5, 1200, 10)) {
             ReplyToCommand(client, "sent in a test round for you, currently with RWS=%f, roundsplayed=%d", userData[client].rws, userData[client].rounds_total);
         } else {
@@ -626,7 +632,7 @@ public Action Command_TestSend(int client, int args) {
     }
 
     return Plugin_Handled;
-}
+}*/
 
 public Action Command_DumpRWS(int client, int args) {
     for (int i = 1; i <= MaxClients; i++) {

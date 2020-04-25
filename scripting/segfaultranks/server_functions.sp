@@ -170,6 +170,11 @@ public void SteamWorks_OnUserReceived(Handle request, bool failure, bool request
                         // apply rws to scoreboard
                         if(IsPlayer(client)) {
                             SetClientRwsDisplay(client, userData[client].rws);
+                            /*if(messageNewRws) {
+                                char clientName[16];
+                                GetClientName(client, clientName, sizeof(clientName));
+                                SegfaultRanks_MessageToAll("%s connected with rws: %0.2f", clientName, userData[client].rws);
+                            }*/
                         }
                     } else {
                         LogError("Failed to parse user init json from response body: %s", responseBody);
@@ -213,6 +218,11 @@ public void SteamWorks_OnNewRoundSent(Handle request, bool failure, bool request
                         if(userData[client].ParseFromJson(responseBody, false)) {
                             // apply rws to scoreboard
                             SetClientRwsDisplay(client, userData[client].rws);
+                            if(messageNewRws) {
+                                char clientName[16];
+                                GetClientName(client, clientName, sizeof(clientName));
+                                SegfaultRanks_MessageToAll("new rws for %s: %0.2f", clientName, userData[client].rws);
+                            }
                         } else {
                             LogError("Failed to parse user init json from response body: %s", responseBody);
                         }
