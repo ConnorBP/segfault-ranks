@@ -1,7 +1,7 @@
 #pragma semicolon 1 // Force strict semicolon mode.
 
 
-#define PLUGIN_VERSION "0.9.1"// 1.0.0 release candidate. Needs a few additional things to be ready
+#define PLUGIN_VERSION "1.0.0"// 1.0.0 release candidate. Needs a few additional things to be ready
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
