@@ -1,12 +1,14 @@
 #pragma semicolon 1 // Force strict semicolon mode.
 
 
-#define PLUGIN_VERSION "1.0.3"// 1.0.0 release candidate. Needs a few additional things to be ready
+#define PLUGIN_VERSION "1.1.0"
 #define MESSAGE_PREFIX "[\x05Ranks\x01] "
 #define DEBUG_CVAR "sm_segfaultranks_debug"
 
 #define ALIAS_LENGTH 64
 #define COMMAND_LENGTH 64
+
+#define LEADERBOARD_GET_LIMIT 10
 
 #include <clientprefs>
 #include <cstrike>
@@ -76,8 +78,6 @@ int minimumPlayers = 4;
 int minimumEnemies = 2;
 int minimumTeam = 2;
 
-// minimum rounds played required before user is shown on leaderboard
-int minimumRounds = 50;
 public char baseApiUrl[64] = "http://localhost:1337/v1";
 
 public bool messageNewRws;
@@ -97,7 +97,6 @@ ConVar cvarAllowStatsOtherCommand;
 //ConVar cvarMinimumPlayers;
 ConVar cvarMinimumEnemies;
 ConVar cvarMinimumTeam;
-ConVar cvarMinimumRounds;
 ConVar cvarMessageNewRws;
 
 
@@ -143,7 +142,7 @@ void InitializeDatabaseConnection() {
     }
 
     // send request to update/init local leaderboard cache
-    GetLeaderboardData(minimumRounds);
+    GetLeaderboardData(LEADERBOARD_GET_LIMIT);
 
     //  In here we will verify that the webservice is indeed running, and authorize ourselves with the api
 
@@ -211,7 +210,6 @@ void RegisterConvars() {
     //cvarMinimumPlayers = CreateConVar("sm_segfaultranks_minimumplayers", "2", "Minimum players to start giving points", _, true, 0.0);
     cvarMinimumEnemies = CreateConVar("sm_segfaultranks_minimumenemies", "2", "Minimum players on enemy team to start giving points", _, true, 1.0);
     cvarMinimumTeam = CreateConVar("sm_segfaultranks_minimumenemies", "2", "Minimum players on enemy team to start giving points", _, true, 1.0);
-    cvarMinimumRounds = CreateConVar("sm_segfaultrank_minimal_rounds", "50","Minimal rounds played for rank to be displayed on leaderboard", _, true, 0.0);
 
     cvarMessageNewRws = CreateConVar("sm_segfaultrank_newrws_message", "1", "Wether or not new stats for users are sent to chat.");
 
@@ -222,7 +220,6 @@ void GetCvarValues() {
     //minimumPlayers = cvarMinimumPlayers.IntValue;
     minimumEnemies = cvarMinimumEnemies.IntValue;
     minimumTeam = cvarMinimumTeam.IntValue;
-    minimumRounds = cvarMinimumRounds.IntValue;
     cvarBaseApiUrl.GetString(baseApiUrl, sizeof(baseApiUrl));
     messageNewRws = cvarMessageNewRws.BoolValue;
 }
@@ -525,7 +522,7 @@ public bool HelpfulAttack(int attacker, int victim) {
 
 void CheckLeaderboardCache() {
     if(GetTime() - leaderboardLastLoaded > cacheTime) {
-        GetLeaderboardData(minimumRounds);
+        GetLeaderboardData(LEADERBOARD_GET_LIMIT);
     }
 }
 

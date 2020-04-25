@@ -126,9 +126,9 @@ bool SendNewRound(int client, bool did_win, int round_points, int team_points, i
     return SteamWorks_SendHTTPRequest(authRequest);
 }
 
-bool GetLeaderboardData(int minRounds) {
+bool GetLeaderboardData(int limit) {
     char url[128];
-    Format(url, sizeof(url), "%s/%s/%i", BASE_API_URL, GET_LEADERBOARD, minRounds);
+    Format(url, sizeof(url), "%s/%s/%i", BASE_API_URL, GET_LEADERBOARD, limit);
 
     Handle leaderboardRequest = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, url);
     if (leaderboardRequest == INVALID_HANDLE) {
